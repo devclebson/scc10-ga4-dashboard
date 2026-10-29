@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SCC10 — Monitor Editorial & Analytics GA4</title>
   <meta name="description" content="Dashboard de monitoramento editorial em tempo real e analytics GA4 para portal de notícias.">
+  <script>
+    if (!window.location.pathname.endsWith('/configuracao.html') && !window.location.pathname.endsWith('/dashboard.html')) {
+      window.location.replace('configuracao.html');
+    }
+  </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233266ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>">
   <script src="node_modules/chart.js/dist/chart.umd.js"></script>
   <script src="node_modules/d3/dist/d3.min.js"></script>
