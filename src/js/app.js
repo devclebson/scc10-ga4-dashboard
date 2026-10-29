@@ -60,8 +60,8 @@
     }
 
     function handleTokenExpiry() {
-      storage.removeAccessToken();
-      storage.removeTokenExpiresAt();
+
+
       showToast('Sessão expirada. Tentando reconectar...', 'warning');
       // Tentativa de reconexão silenciosa caso o usuário já tenha autenticado
       if (window.google?.accounts?.oauth2 && clientIdInput.value.trim()) {
@@ -73,8 +73,8 @@
               if (r.access_token) {
                 state.accessToken = r.access_token;
                 tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
-                storage.setAccessToken(r.access_token);
-                storage.setTokenExpiresAt(String(tokenExpiresAt));
+
+
                 showToast('Sessão renovada com sucesso!', 'success');
                 if (state.selectedProperty) fetchRealtimeCycle();
               }
@@ -150,8 +150,8 @@
             state.isDemo = false;
             tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
             storage.setClientId(clientId);
-            storage.setAccessToken(r.access_token);
-            storage.setTokenExpiresAt(String(tokenExpiresAt));
+
+
             fetchProperties();
           },
           onError: e => showError(setupError, 'Erro na autenticação: ' + (e.message || 'Verifique as permissões de Test User no console Google.'))
@@ -253,8 +253,8 @@
     $('logout-btn')?.addEventListener('click', () => {
       destroyCharts();
       if (realtimeInterval) clearInterval(realtimeInterval);
-      storage.removeAccessToken();
-      storage.removeTokenExpiresAt();
+
+
       storage.removeSelectedProperty();
       state.accessToken = null;
       state.selectedProperty = null;
@@ -1292,6 +1292,8 @@
 
     // ============ INICIALIZAÇÃO DE SESSÃO SALVA (F5 RESILIENTE) ============
     function initSavedSession() {
+      storage.clearLegacyTokens();
+
       // 1. Restaurar Client ID digitado
       const savedClientId = storage.getClientId();
       if (savedClientId) {
@@ -1311,33 +1313,35 @@
         dateRangeSelect.value = savedDateRange;
       }
 
-      // 4. Verificar se o token de acesso ainda é válido
-      const savedToken = storage.getAccessToken();
-      const savedExpiresAt = parseInt(storage.getTokenExpiresAt() || '0', 10);
+      // 4. Tentar renovar a sessão silenciosamente sem persistir o token.
+      if (!savedClientId) return;
 
-      if (savedToken && savedExpiresAt && Date.now() < (savedExpiresAt - 60000)) {
-        state.accessToken = savedToken;
-        tokenExpiresAt = savedExpiresAt;
+      googleAuth.requestAccessToken({
+        prompt: '',
+        onToken: response => {
+          if (!response?.access_token) return;
+          state.accessToken = response.access_token;
+          tokenExpiresAt = Date.now() + ((response.expires_in || 3600) * 1000);
 
-        // Verificar se já havia uma propriedade selecionada
-        const savedPropStr = storage.getSelectedProperty();
-        if (savedPropStr) {
-          try {
-            const prop = JSON.parse(savedPropStr);
-            if (prop && prop.id) {
-              state.selectedProperty = prop;
-              showToast(`Sessão restaurada para ${prop.name}!`, 'success');
-              loadAllAnalytics();
-              return;
+          const savedPropStr = storage.getSelectedProperty();
+          if (savedPropStr) {
+            try {
+              const prop = JSON.parse(savedPropStr);
+              if (prop?.id) {
+                state.selectedProperty = prop;
+                showToast(`Sessão restaurada para ${prop.name}!`, 'success');
+                loadAllAnalytics();
+                return;
+              }
+            } catch (error) {
+              console.warn('Erro ao restaurar propriedade salva:', error);
             }
-          } catch (e) {
-            console.warn('Erro ao restaurar propriedade salva:', e);
           }
-        }
 
-        // Se temos token válido mas nenhuma propriedade salva, busca propriedades direto
-        fetchProperties();
-      }
+          fetchProperties();
+        },
+        onError: error => console.info('Renovação silenciosa indisponível:', error?.message || error)
+      }).catch(error => console.info('Sessão salva não restaurada:', error.message));
     }
 
     // Executa a inicialização ao carregar a página
