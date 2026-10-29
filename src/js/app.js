@@ -24,6 +24,10 @@
     const dateRangeSelect = $('date-range');
     const customStartDateInput = $('custom-start-date');
     const customEndDateInput = $('custom-end-date');
+    const dashboardDateRangeSelect = $('dashboard-date-range');
+    const dashboardStartDateInput = $('dashboard-start-date');
+    const dashboardEndDateInput = $('dashboard-end-date');
+    const dashboardDateApplyBtn = $('dashboard-date-apply');
     const compareToggle = $('compare-toggle');
     const viewBtn = $('view-btn');
     const selectError = $('select-error');
@@ -248,6 +252,27 @@
       state.customEndDate = end;
       loadAllAnalytics();
     });
+    dashboardDateRangeSelect.addEventListener('change', () => {
+      dashboardStartDateInput.value = '';
+      dashboardEndDateInput.value = '';
+    });
+    dashboardDateApplyBtn.addEventListener('click', () => {
+      const start = dashboardStartDateInput.value;
+      const end = dashboardEndDateInput.value;
+      if ((start && !end) || (!start && end) || (start && end && start > end)) {
+        showToast('Informe um intervalo válido para atualizar os relatórios.', 'warning');
+        return;
+      }
+      state.dateRange = dashboardDateRangeSelect.value;
+      state.customStartDate = start;
+      state.customEndDate = end;
+      storage.setDateRange(state.dateRange);
+      if (state.isDemo) {
+        loadDemoData();
+      } else {
+        loadAllAnalytics(true);
+      }
+    });
     refreshBtn.addEventListener('click', () => {
       if (state.isDemo) {
         loadDemoData();
@@ -357,6 +382,7 @@
       state.data = generateDemoHistoricalData(1.0);
       state.prevData = generateDemoHistoricalData(0.92);
 
+      syncDashboardDateControls();
       renderDashboard();
     }
 
@@ -472,6 +498,12 @@
       };
     }
 
+    function syncDashboardDateControls() {
+      dashboardDateRangeSelect.value = state.dateRange;
+      dashboardStartDateInput.value = state.customStartDate || '';
+      dashboardEndDateInput.value = state.customEndDate || '';
+    }
+
     // ============ CARREGAMENTO DE TODOS OS RELATÓRIOS ============
     async function loadAllAnalytics(forceRefresh = false) {
       if (!state.selectedProperty) return;
@@ -520,6 +552,7 @@
         // Executa o primeiro ciclo de tempo real do Monitor Editorial
         await fetchRealtimeCycle();
 
+        syncDashboardDateControls();
         showScreen(dashboardScreen);
         renderDashboard();
 

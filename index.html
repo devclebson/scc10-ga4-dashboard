@@ -98,6 +98,18 @@
           </div>
         </div>
 
+        <div class="dashboard-date-controls" aria-label="Filtro global de período">
+          <select id="dashboard-date-range" title="Período dos relatórios">
+            <option value="7">7 dias</option>
+            <option value="30" selected>30 dias</option>
+            <option value="90">90 dias</option>
+            <option value="365">12 meses</option>
+          </select>
+          <input id="dashboard-start-date" type="date" aria-label="Data inicial">
+          <input id="dashboard-end-date" type="date" aria-label="Data final">
+          <button id="dashboard-date-apply" class="btn btn-secondary btn-small" type="button">Aplicar</button>
+        </div>
+
         <div class="header-actions">
           <button id="tv-toggle-btn" class="btn btn-tv btn-small" title="Modo TV / Tela Cheia">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>

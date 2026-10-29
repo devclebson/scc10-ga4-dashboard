@@ -453,6 +453,24 @@
       gap: 8px;
       flex-wrap: wrap;
     }
+    .dashboard-date-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .dashboard-date-controls select,
+    .dashboard-date-controls input {
+      width: auto;
+      min-width: 112px;
+      margin: 0;
+      padding: 8px 9px;
+      font-size: 12px;
+    }
+    .dashboard-date-controls select {
+      min-width: 92px;
+    }
 
     /* CHARTS */
     .chart-container { position: relative; height: 290px; margin-top: 12px; }
@@ -557,6 +575,15 @@
       .metrics-grid { grid-template-columns: repeat(2, 1fr); }
       .tab { padding-left: 10px; padding-right: 10px; font-size: 13px; }
       .tabs-more { padding-left: 4px; }
+      .dashboard-date-controls {
+        width: 100%;
+        margin-left: 0;
+      }
+      .dashboard-date-controls select,
+      .dashboard-date-controls input,
+      .dashboard-date-controls button {
+        flex: 1 1 100%;
+      }
     }
     .history-filters {
       display: flex;
