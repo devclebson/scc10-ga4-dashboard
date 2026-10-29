@@ -24,10 +24,12 @@
     const dateRangeSelect = $('date-range');
     const customStartDateInput = $('custom-start-date');
     const customEndDateInput = $('custom-end-date');
+    const reportCustomDates = $('report-custom-dates');
     const dashboardDateRangeSelect = $('dashboard-date-range');
     const dashboardStartDateInput = $('dashboard-start-date');
     const dashboardEndDateInput = $('dashboard-end-date');
     const dashboardDateApplyBtn = $('dashboard-date-apply');
+    const dashboardCustomDates = $('dashboard-custom-dates');
     const compareToggle = $('compare-toggle');
     const viewBtn = $('view-btn');
     const selectError = $('select-error');
@@ -56,6 +58,10 @@
       toast.textContent = msg;
       container.appendChild(toast);
       setTimeout(() => toast.remove(), 4000);
+    }
+
+    function toggleCustomDateFields(select, container) {
+      container.classList.toggle('hidden', select.value !== 'custom');
     }
 
     function destroyCharts() {
@@ -238,13 +244,14 @@
       state.customEndDate = '';
       customStartDateInput.value = '';
       customEndDateInput.value = '';
+      toggleCustomDateFields(dateRangeSelect, reportCustomDates);
       storage.setDateRange(state.dateRange);
     });
     compareToggle.addEventListener('change', () => state.compareEnabled = compareToggle.checked);
     viewBtn.addEventListener('click', () => {
       const start = customStartDateInput.value;
       const end = customEndDateInput.value;
-      if ((start && !end) || (!start && end) || (start && end && start > end)) {
+      if ((dateRangeSelect.value === 'custom' && (!start || !end)) || (start && !end) || (!start && end) || (start && end && start > end)) {
         showError(selectError, 'Informe um intervalo válido: a data inicial deve ser anterior ou igual à data final.');
         return;
       }
@@ -255,11 +262,12 @@
     dashboardDateRangeSelect.addEventListener('change', () => {
       dashboardStartDateInput.value = '';
       dashboardEndDateInput.value = '';
+      toggleCustomDateFields(dashboardDateRangeSelect, dashboardCustomDates);
     });
     dashboardDateApplyBtn.addEventListener('click', () => {
       const start = dashboardStartDateInput.value;
       const end = dashboardEndDateInput.value;
-      if ((start && !end) || (!start && end) || (start && end && start > end)) {
+      if ((dashboardDateRangeSelect.value === 'custom' && (!start || !end)) || (start && !end) || (!start && end) || (start && end && start > end)) {
         showToast('Informe um intervalo válido para atualizar os relatórios.', 'warning');
         return;
       }
@@ -387,7 +395,9 @@
     }
 
     function generateDemoHistoricalData(mult = 1) {
-      const days = parseInt(state.dateRange);
+      const days = state.customStartDate && state.customEndDate
+        ? Math.max(1, Math.round((new Date(`${state.customEndDate}T00:00:00Z`) - new Date(`${state.customStartDate}T00:00:00Z`)) / 86400000) + 1)
+        : state.dateRange === 'today' ? 1 : (parseInt(state.dateRange, 10) || 30);
       const rows = [];
       const baseDate = new Date();
       let totalSess = 0, totalUsers = 0, totalViews = 0;
@@ -489,7 +499,14 @@
         };
       }
 
+      if (state.dateRange === 'today') {
+        return { start: 'today', end: 'today', previousStart: '1daysAgo', previousEnd: '1daysAgo' };
+      }
+
       const days = parseInt(state.dateRange, 10);
+      if (!Number.isFinite(days)) {
+        return { start: '30daysAgo', end: 'today', previousStart: '60daysAgo', previousEnd: '31daysAgo' };
+      }
       return {
         start: `${days}daysAgo`,
         end: 'today',
@@ -499,9 +516,10 @@
     }
 
     function syncDashboardDateControls() {
-      dashboardDateRangeSelect.value = state.dateRange;
+      dashboardDateRangeSelect.value = state.customStartDate && state.customEndDate ? 'custom' : state.dateRange;
       dashboardStartDateInput.value = state.customStartDate || '';
       dashboardEndDateInput.value = state.customEndDate || '';
+      toggleCustomDateFields(dashboardDateRangeSelect, dashboardCustomDates);
     }
 
     // ============ CARREGAMENTO DE TODOS OS RELATÓRIOS ============

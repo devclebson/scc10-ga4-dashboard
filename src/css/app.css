@@ -442,6 +442,12 @@
       gap: 14px;
       flex-wrap: wrap;
     }
+    .dashboard-logo {
+      width: 82px;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
     .header-title {
       font-size: 20px;
       font-weight: 700;
@@ -470,6 +476,14 @@
     }
     .dashboard-date-controls select {
       min-width: 92px;
+    }
+    .dashboard-custom-dates {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dashboard-custom-dates input {
+      min-width: 122px;
     }
 
     /* CHARTS */
