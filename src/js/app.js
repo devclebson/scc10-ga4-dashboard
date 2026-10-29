@@ -7,6 +7,7 @@
     let charts = {};
     let realtimeInterval = null;
     let tokenExpiresAt = null;
+    let localHistoryRange = '6h';
 
     // ============ ELEMENTOS DOM ============
     const $ = id => document.getElementById(id);
@@ -1259,15 +1260,31 @@
         return;
       }
 
+      const rangeHours = { '2h': 2, '6h': 6, 'today': 24, '7d': 24 * 7 }[localHistoryRange];
+      const to = new Date();
+      const from = new Date(to.getTime() - rangeHours * 60 * 60 * 1000);
+
       tabContent.innerHTML = `
         <div class="card">
-          <div class="section-title">Histórico local de audiência</div>
-          <p style="color:var(--text-muted); margin-top:8px;">Carregando snapshots salvos no SQLite...</p>
+          <div class="flex-between">
+            <div>
+              <div class="section-title">Histórico local de audiência</div>
+              <p style="color:var(--text-muted); margin-top:8px;">Carregando snapshots salvos no SQLite...</p>
+            </div>
+            <label style="min-width:170px; margin:0;">Período
+              <select id="local-history-range" style="margin:4px 0 0;">
+                <option value="2h" ${localHistoryRange === '2h' ? 'selected' : ''}>Últimas 2 horas</option>
+                <option value="6h" ${localHistoryRange === '6h' ? 'selected' : ''}>Últimas 6 horas</option>
+                <option value="today" ${localHistoryRange === 'today' ? 'selected' : ''}>Hoje</option>
+                <option value="7d" ${localHistoryRange === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
+              </select>
+            </label>
+          </div>
         </div>
       `;
 
       try {
-        const snapshots = await getSnapshots({ propertyId: state.selectedProperty.id, limit: 100 });
+        const snapshots = await getSnapshots({ propertyId: state.selectedProperty.id, from: from.toISOString(), to: to.toISOString(), limit: 500 });
         if (!snapshots.length) {
           tabContent.innerHTML = `
             <div class="card" style="text-align:center; padding:40px 20px;">
@@ -1285,7 +1302,16 @@
                 <div class="section-title">Snapshots salvos localmente</div>
                 <div style="color:var(--text-muted); font-size:13px; margin-top:4px;">${snapshots.length} registros consultados</div>
               </div>
+              <label style="min-width:170px; margin:0;">Período
+                <select id="local-history-range" style="margin:4px 0 0;">
+                  <option value="2h" ${localHistoryRange === '2h' ? 'selected' : ''}>Últimas 2 horas</option>
+                  <option value="6h" ${localHistoryRange === '6h' ? 'selected' : ''}>Últimas 6 horas</option>
+                  <option value="today" ${localHistoryRange === 'today' ? 'selected' : ''}>Hoje</option>
+                  <option value="7d" ${localHistoryRange === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
+                </select>
+              </label>
             </div>
+            <div class="chart-container" style="margin:20px 0;"><canvas id="local-history-chart"></canvas></div>
             <div class="ranking-container">
               <table class="ranking-table">
                 <thead>
@@ -1312,6 +1338,40 @@
             </div>
           </div>
         `;
+
+        $('local-history-range')?.addEventListener('change', event => {
+          localHistoryRange = event.target.value;
+          renderLocalHistory();
+        });
+
+        charts.localHistory = new Chart($('local-history-chart'), {
+          type: 'line',
+          data: {
+            labels: [...snapshots].reverse().map(snapshot => new Date(snapshot.captured_at).toLocaleTimeString('pt-BR')),
+            datasets: [
+              {
+                label: 'Leitores ativos (30m)',
+                data: [...snapshots].reverse().map(snapshot => snapshot.active_users_30m),
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37,99,235,0.10)',
+                fill: true,
+                tension: 0.3
+              },
+              {
+                label: 'Visualizações (30m)',
+                data: [...snapshots].reverse().map(snapshot => snapshot.page_views_30m),
+                borderColor: '#10b981',
+                backgroundColor: 'transparent',
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+          }
+        });
       } catch (error) {
         tabContent.innerHTML = `
           <div class="card">

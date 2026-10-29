@@ -75,11 +75,13 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     return data;
   }
 
-  async function getSnapshots({ propertyId, limit = 100 } = {}) {
+  async function getSnapshots({ propertyId, from, to, limit = 100 } = {}) {
     const params = new URLSearchParams({
       propertyId: String(propertyId || '').replace(/^properties\//, ''),
       limit: String(limit)
     });
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
     const res = await fetch(`${BACKEND_API_BASE}/api/snapshots?${params}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Falha ao consultar snapshots.');
