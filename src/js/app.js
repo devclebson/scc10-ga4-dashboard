@@ -2,6 +2,7 @@
     import { state } from './state.js';
     import { createAnalyticsApi } from './services/analytics-api.js';
     import { createGoogleAuth } from './services/auth.js';
+    import { storage } from './services/storage.js';
 
     let charts = {};
     let realtimeInterval = null;
@@ -59,8 +60,8 @@
     }
 
     function handleTokenExpiry() {
-      localStorage.removeItem('scc10_access_token');
-      localStorage.removeItem('scc10_token_expires_at');
+      storage.removeAccessToken();
+      storage.removeTokenExpiresAt();
       showToast('Sessão expirada. Tentando reconectar...', 'warning');
       // Tentativa de reconexão silenciosa caso o usuário já tenha autenticado
       if (window.google?.accounts?.oauth2 && clientIdInput.value.trim()) {
@@ -72,8 +73,8 @@
               if (r.access_token) {
                 state.accessToken = r.access_token;
                 tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
-                localStorage.setItem('scc10_access_token', r.access_token);
-                localStorage.setItem('scc10_token_expires_at', String(tokenExpiresAt));
+                storage.setAccessToken(r.access_token);
+                storage.setTokenExpiresAt(String(tokenExpiresAt));
                 showToast('Sessão renovada com sucesso!', 'success');
                 if (state.selectedProperty) fetchRealtimeCycle();
               }
@@ -106,7 +107,7 @@
 
     function toggleTvMode(forceState = null) {
       state.isTvMode = forceState !== null ? forceState : !state.isTvMode;
-      localStorage.setItem('scc10_is_tv_mode', state.isTvMode ? 'true' : 'false');
+      storage.setTvMode(state.isTvMode ? 'true' : 'false');
       if (state.isTvMode) {
         document.body.classList.add('tv-mode');
         tvToggleBtn.innerHTML = `
@@ -136,7 +137,7 @@
       hideError(setupError);
       authBtn.disabled = true;
       authBtn.textContent = 'Conectando ao Google...';
-      localStorage.setItem('scc10_client_id', clientId);
+      storage.setClientId(clientId);
 
       try {
         await googleAuth.requestAccessToken({
@@ -148,9 +149,9 @@
             state.accessToken = r.access_token;
             state.isDemo = false;
             tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
-            localStorage.setItem('scc10_client_id', clientId);
-            localStorage.setItem('scc10_access_token', r.access_token);
-            localStorage.setItem('scc10_token_expires_at', String(tokenExpiresAt));
+            storage.setClientId(clientId);
+            storage.setAccessToken(r.access_token);
+            storage.setTokenExpiresAt(String(tokenExpiresAt));
             fetchProperties();
           },
           onError: e => showError(setupError, 'Erro na autenticação: ' + (e.message || 'Verifique as permissões de Test User no console Google.'))
@@ -215,7 +216,7 @@
           item.querySelector('input').checked = true;
           state.selectedProperty = state.properties.find(p => p.id === item.dataset.id);
           if (state.selectedProperty) {
-            localStorage.setItem('scc10_selected_property', JSON.stringify(state.selectedProperty));
+            storage.setSelectedProperty(JSON.stringify(state.selectedProperty));
           }
           viewBtn.disabled = false;
         });
@@ -224,7 +225,7 @@
 
     dateRangeSelect.addEventListener('change', () => {
       state.dateRange = dateRangeSelect.value;
-      localStorage.setItem('scc10_date_range', state.dateRange);
+      storage.setDateRange(state.dateRange);
     });
     compareToggle.addEventListener('change', () => state.compareEnabled = compareToggle.checked);
     viewBtn.addEventListener('click', () => loadAllAnalytics());
@@ -238,7 +239,7 @@
     changeBtn.addEventListener('click', () => {
       destroyCharts();
       if (realtimeInterval) clearInterval(realtimeInterval);
-      localStorage.removeItem('scc10_selected_property');
+      storage.removeSelectedProperty();
       if (state.isDemo) {
         state.isDemo = false;
         modeBadge.textContent = 'PRO';
@@ -252,9 +253,9 @@
     $('logout-btn')?.addEventListener('click', () => {
       destroyCharts();
       if (realtimeInterval) clearInterval(realtimeInterval);
-      localStorage.removeItem('scc10_access_token');
-      localStorage.removeItem('scc10_token_expires_at');
-      localStorage.removeItem('scc10_selected_property');
+      storage.removeAccessToken();
+      storage.removeTokenExpiresAt();
+      storage.removeSelectedProperty();
       state.accessToken = null;
       state.selectedProperty = null;
       tokenExpiresAt = null;
@@ -1292,34 +1293,34 @@
     // ============ INICIALIZAÇÃO DE SESSÃO SALVA (F5 RESILIENTE) ============
     function initSavedSession() {
       // 1. Restaurar Client ID digitado
-      const savedClientId = localStorage.getItem('scc10_client_id');
+      const savedClientId = storage.getClientId();
       if (savedClientId) {
         clientIdInput.value = savedClientId;
       }
 
       // 2. Restaurar Modo TV se estava ativo
-      const savedTvMode = localStorage.getItem('scc10_is_tv_mode');
+      const savedTvMode = storage.getTvMode();
       if (savedTvMode === 'true') {
         toggleTvMode(true);
       }
 
       // 3. Restaurar Período de Datas
-      const savedDateRange = localStorage.getItem('scc10_date_range');
+      const savedDateRange = storage.getDateRange();
       if (savedDateRange && dateRangeSelect) {
         state.dateRange = savedDateRange;
         dateRangeSelect.value = savedDateRange;
       }
 
       // 4. Verificar se o token de acesso ainda é válido
-      const savedToken = localStorage.getItem('scc10_access_token');
-      const savedExpiresAt = parseInt(localStorage.getItem('scc10_token_expires_at') || '0', 10);
+      const savedToken = storage.getAccessToken();
+      const savedExpiresAt = parseInt(storage.getTokenExpiresAt() || '0', 10);
 
       if (savedToken && savedExpiresAt && Date.now() < (savedExpiresAt - 60000)) {
         state.accessToken = savedToken;
         tokenExpiresAt = savedExpiresAt;
 
         // Verificar se já havia uma propriedade selecionada
-        const savedPropStr = localStorage.getItem('scc10_selected_property');
+        const savedPropStr = storage.getSelectedProperty();
         if (savedPropStr) {
           try {
             const prop = JSON.parse(savedPropStr);
