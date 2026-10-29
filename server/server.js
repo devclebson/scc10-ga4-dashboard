@@ -1,9 +1,10 @@
 import { createServer } from 'node:http';
 import { getSnapshots, saveSnapshot } from './db.js';
+import { isServiceAccountConfigured } from './services/google-auth.js';
+import { requestGa4Report } from './services/ga4-client.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
-const DATA_API_BASE = 'https://analyticsdata.googleapis.com/v1beta/properties';
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
@@ -29,22 +30,25 @@ function propertyIdFrom(value) {
 }
 
 async function proxyAnalyticsRequest(req, body) {
-  const propertyId = propertyIdFrom(body.propertyId);
-  const reportType = body.reportType === 'realtime' ? 'runRealtimeReport' : 'runReport';
   const token = req.headers.authorization;
-  if (!token?.startsWith('Bearer ')) throw new Error('Authorization Bearer ausente.');
+  if (token?.startsWith('Bearer ')) {
+    const propertyId = propertyIdFrom(body.propertyId);
+    const reportType = body.reportType === 'realtime' ? 'runRealtimeReport' : 'runReport';
+    const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:${reportType}`, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body.payload || {})
+    });
+    return { status: response.status, data: await response.json() };
+  }
 
-  const response = await fetch(`${DATA_API_BASE}/${propertyId}:${reportType}`, {
-    method: 'POST',
-    headers: {
-      Authorization: token,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body.payload || {})
-  });
-
-  const data = await response.json();
-  return { status: response.status, data };
+  if (!isServiceAccountConfigured()) {
+    throw new Error('Authorization Bearer ausente e Service Account não configurada.');
+  }
+  return requestGa4Report(body);
 }
 
 const server = createServer(async (req, res) => {
@@ -57,7 +61,12 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
-      sendJson(res, 200, { ok: true, service: 'scc10-backend', time: new Date().toISOString() });
+      sendJson(res, 200, {
+        ok: true,
+        service: 'scc10-backend',
+        authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
+        time: new Date().toISOString()
+      });
       return;
     }
 
