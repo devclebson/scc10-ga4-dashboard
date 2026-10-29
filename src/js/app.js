@@ -34,7 +34,7 @@
     const compareToggle = $('compare-toggle');
     const viewBtn = $('view-btn');
     const selectError = $('select-error');
-    const propName = $('prop-name');
+
     const realtimeBadge = $('realtime-badge');
     const realtimeCount = $('realtime-count');
     const lastUpdatedText = $('last-updated-text');
@@ -714,7 +714,6 @@
 
     // ============ RENDERIZAÇÃO DO DASHBOARD ============
     function renderDashboard() {
-      propName.textContent = state.selectedProperty.name;
       if (state.realtime !== null) {
         realtimeBadge.classList.remove('hidden');
         realtimeCount.textContent = `${state.realtime} leitores agora`;
