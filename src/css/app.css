@@ -448,6 +448,55 @@
       display: block;
       object-fit: contain;
     }
+    .setup-page-card {
+      max-width: 560px;
+      margin: 12vh auto;
+      padding: 32px;
+    }
+    .setup-logo {
+      width: 180px;
+      height: auto;
+      display: block;
+      margin: 0 auto 24px;
+    }
+    .setup-page-card h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .setup-description,
+    .config-note {
+      color: var(--text-muted);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .config-status {
+      margin: 24px 0 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .config-status.success { background: #dcfce7; color: #166534; }
+    .config-status.error { background: #fee2e2; color: #991b1b; }
+    .config-details {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px 16px;
+      font-size: 13px;
+    }
+    .config-details dt { color: var(--text-muted); }
+    .config-details dd { margin: 0; font-weight: 600; text-align: right; }
+    .setup-actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    .config-note { margin-top: 20px; font-size: 11px; }
     .header-title {
       font-size: 20px;
       font-weight: 700;

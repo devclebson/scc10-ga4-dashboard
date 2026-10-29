@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCC10 — Configuração</title>
+  <link rel="icon" href="portal_scc_10_logo.jpg">
+  <link rel="stylesheet" href="src/css/app.css">
+</head>
+<body>
+  <div class="container" role="main">
+    <div class="setup-page-card card">
+      <img class="setup-logo" src="Logo-SCC10-1-640x170.png" alt="SCC10">
+      <h1>Configuração do Dashboard</h1>
+      <p class="setup-description">Acesso administrativo ao backend e à propriedade GA4 configurada.</p>
+
+      <div id="config-status" class="config-status">Verificando backend...</div>
+      <dl class="config-details">
+        <dt>Propriedade GA4</dt>
+        <dd id="config-property">--</dd>
+        <dt>Modo de autenticação</dt>
+        <dd id="config-auth">--</dd>
+        <dt>Backend</dt>
+        <dd id="config-backend">--</dd>
+      </dl>
+
+      <div class="setup-actions">
+        <a id="open-dashboard" class="btn" href="dashboard.html">Abrir Dashboard</a>
+        <button id="refresh-config" class="btn btn-secondary" type="button">Verificar novamente</button>
+      </div>
+      <p class="config-note">As credenciais permanecem no servidor. Não coloque o JSON da Service Account nesta página.</p>
+    </div>
+  </div>
+  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || 'http://127.0.0.1:3001';</script>
+  <script type="module" src="src/js/config-app.js"></script>
+</body>
+</html>

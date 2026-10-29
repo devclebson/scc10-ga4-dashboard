@@ -49,7 +49,7 @@
     // ============ AUXILIARES E FORMATAÇÃO ============
     function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
     function hideError(el) { el.classList.add('hidden'); }
-    function showScreen(screen) { [setupScreen, selectScreen, dashboardScreen].forEach(s => s.classList.add('hidden')); screen.classList.remove('hidden'); }
+    function showScreen(screen) { [setupScreen, selectScreen, dashboardScreen].filter(Boolean).forEach(s => s.classList.add('hidden')); screen?.classList.remove('hidden'); }
     
 
     function showToast(msg, type = 'info') {
@@ -117,7 +117,7 @@
     });
 
     // ============ MODO TV / REDAÇÃO ============
-    tvToggleBtn.addEventListener('click', () => {
+    tvToggleBtn?.addEventListener('click', () => {
       toggleTvMode();
     });
 
@@ -147,7 +147,7 @@
     }
 
     // ============ AUTENTICAÇÃO COM GOOGLE ============
-    authBtn.addEventListener('click', async () => {
+    authBtn?.addEventListener('click', async () => {
       const clientId = clientIdInput.value.trim();
       if (!clientId) { showError(setupError, 'Por favor, insira o OAuth Client ID do Google Cloud.'); return; }
       hideError(setupError);
@@ -239,7 +239,7 @@
       });
     }
 
-    dateRangeSelect.addEventListener('change', () => {
+    dateRangeSelect?.addEventListener('change', () => {
       state.dateRange = dateRangeSelect.value;
       state.customStartDate = '';
       state.customEndDate = '';
@@ -248,8 +248,8 @@
       toggleCustomDateFields(dateRangeSelect, reportCustomDates);
       storage.setDateRange(state.dateRange);
     });
-    compareToggle.addEventListener('change', () => state.compareEnabled = compareToggle.checked);
-    viewBtn.addEventListener('click', () => {
+    compareToggle?.addEventListener('change', () => state.compareEnabled = compareToggle.checked);
+    viewBtn?.addEventListener('click', () => {
       const start = customStartDateInput.value;
       const end = customEndDateInput.value;
       if ((dateRangeSelect.value === 'custom' && (!start || !end)) || (start && !end) || (!start && end) || (start && end && start > end)) {
@@ -260,12 +260,12 @@
       state.customEndDate = end;
       loadAllAnalytics();
     });
-    dashboardDateRangeSelect.addEventListener('change', () => {
+    dashboardDateRangeSelect?.addEventListener('change', () => {
       dashboardStartDateInput.value = '';
       dashboardEndDateInput.value = '';
       toggleCustomDateFields(dashboardDateRangeSelect, dashboardCustomDates);
     });
-    dashboardDateApplyBtn.addEventListener('click', () => {
+    dashboardDateApplyBtn?.addEventListener('click', () => {
       const start = dashboardStartDateInput.value;
       const end = dashboardEndDateInput.value;
       if ((dashboardDateRangeSelect.value === 'custom' && (!start || !end)) || (start && !end) || (!start && end) || (start && end && start > end)) {
@@ -282,14 +282,14 @@
         loadAllAnalytics(true);
       }
     });
-    refreshBtn.addEventListener('click', () => {
+    refreshBtn?.addEventListener('click', () => {
       if (state.isDemo) {
         loadDemoData();
       } else {
         loadAllAnalytics(true);
       }
     });
-    changeBtn.addEventListener('click', () => {
+    changeBtn?.addEventListener('click', () => {
       destroyCharts();
       if (realtimeInterval) clearInterval(realtimeInterval);
       storage.removeSelectedProperty();
@@ -317,7 +317,7 @@
     });
 
     // ============ MODO DEMONSTRAÇÃO (PORTAL DE NOTÍCIAS SCC10) ============
-    demoBtn.addEventListener('click', () => {
+    demoBtn?.addEventListener('click', () => {
       state.isDemo = true;
       modeBadge.textContent = 'DEMO SCC10';
       modeBadge.classList.add('demo-badge');
@@ -526,9 +526,11 @@
     // ============ CARREGAMENTO DE TODOS OS RELATÓRIOS ============
     async function loadAllAnalytics(forceRefresh = false) {
       if (!state.selectedProperty) return;
-      hideError(selectError);
-      viewBtn.disabled = true;
-      viewBtn.textContent = 'Carregando dados...';
+      if (selectError) hideError(selectError);
+      if (viewBtn) {
+        viewBtn.disabled = true;
+        viewBtn.textContent = 'Carregando dados...';
+      }
 
       const propId = state.selectedProperty.id.replace('properties/', '');
       const historicalRange = getHistoricalDateRange();
@@ -582,10 +584,13 @@
         }, 30000);
 
       } catch (e) {
-        showError(selectError, 'Falha ao carregar métricas: ' + e.message);
+        if (selectError) showError(selectError, 'Falha ao carregar métricas: ' + e.message);
+        else console.error('Falha ao carregar métricas:', e);
       } finally {
-        viewBtn.disabled = false;
-        viewBtn.textContent = 'Carregar Dashboard';
+        if (viewBtn) {
+          viewBtn.disabled = false;
+          viewBtn.textContent = 'Carregar Dashboard';
+        }
       }
     }
 
@@ -1621,7 +1626,7 @@
 
       // 1. Restaurar Client ID digitado
       const savedClientId = storage.getClientId();
-      if (savedClientId) {
+      if (savedClientId && clientIdInput) {
         clientIdInput.value = savedClientId;
       }
 
