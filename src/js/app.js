@@ -907,12 +907,14 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
               Ranking das Notícias Mais Lidas Agora
             </div>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <label class="ranking-limit-control">
               <span style="font-size:13px; color:var(--text-muted);">Exibir:</span>
-              <button class="btn btn-secondary btn-small ${ed.rankingLimit === 10 ? 'btn-tv' : ''}" id="limit-10">Top 10</button>
-              <button class="btn btn-secondary btn-small ${ed.rankingLimit === 20 ? 'btn-tv' : ''}" id="limit-20">Top 20</button>
-              <button class="btn btn-secondary btn-small ${ed.rankingLimit === 50 ? 'btn-tv' : ''}" id="limit-50">Top 50</button>
-            </div>
+              <select id="ranking-limit" class="ranking-limit-select" aria-label="Quantidade de notícias no ranking">
+                <option value="10" ${ed.rankingLimit === 10 ? 'selected' : ''}>Top 10</option>
+                <option value="20" ${ed.rankingLimit === 20 ? 'selected' : ''}>Top 20</option>
+                <option value="50" ${ed.rankingLimit === 50 ? 'selected' : ''}>Top 50</option>
+              </select>
+            </label>
           </div>
 
           <div class="ranking-container">
@@ -935,10 +937,10 @@
         </div>
       `;
 
-      // Eventos dos botões de limite
-      $('limit-10')?.addEventListener('click', () => { ed.rankingLimit = 10; renderEditorialRankingOnly(); });
-      $('limit-20')?.addEventListener('click', () => { ed.rankingLimit = 20; renderEditorialRankingOnly(); });
-      $('limit-50')?.addEventListener('click', () => { ed.rankingLimit = 50; renderEditorialRankingOnly(); });
+      $('ranking-limit')?.addEventListener('change', event => {
+        ed.rankingLimit = Number(event.target.value) || 20;
+        renderEditorialRankingOnly();
+      });
 
       // Gráfico de linha do minuto a minuto
       const canvasTrend = $('editorial-trend-chart');
@@ -1049,14 +1051,14 @@
         const urlHtml = p.url
           ? `<div class="article-url">${escapeHtml(p.url)}</div>`
           : `<div class="article-url">URL não disponível no relatório realtime</div>`;
-        const metadata = [
-          p.category ? `Categoria: ${p.category}` : null,
-          p.author ? `Autor: ${p.author}` : null,
-          p.publishedAt ? `Publicado em: ${p.publishedAt}` : null
-        ].filter(Boolean).join(' · ');
-        const metadataHtml = metadata
-          ? `<div class="article-meta">${escapeHtml(metadata)}</div>`
-          : '<div class="article-meta">Metadados históricos indisponíveis</div>';
+        const metadataParts = [
+          p.category ? `<span class="article-meta-item"><strong>Categoria</strong> ${escapeHtml(p.category)}</span>` : null,
+          p.author ? `<span class="article-meta-item"><strong>Autor</strong> ${escapeHtml(p.author)}</span>` : null,
+          p.publishedAt ? `<span class="article-meta-item"><strong>Publicado</strong> ${escapeHtml(p.publishedAt)}</span>` : null
+        ].filter(Boolean);
+        const metadataHtml = metadataParts.length
+          ? `<div class="article-meta">${metadataParts.join('')}</div>`
+          : '<div class="article-meta article-meta-empty">Metadados históricos indisponíveis</div>';
 
         return `
           <tr>
