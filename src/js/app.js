@@ -1,6 +1,7 @@
     import { formatDuration, formatNumber, formatCurrency, calcChange, escapeHtml } from './utils/formatters.js';
     import { state } from './state.js';
     import { createAnalyticsApi } from './services/analytics-api.js';
+    import { createGoogleAuth } from './services/auth.js';
 
     let charts = {};
     let realtimeInterval = null;
@@ -30,6 +31,7 @@
     const tabsContainer = $('tabs');
     const tabContent = $('tab-content');
     const modeBadge = $('mode-badge');
+    const googleAuth = createGoogleAuth({ getClientId: () => clientIdInput.value.trim() });
 
     // ============ AUXILIARES E FORMATAÇÃO ============
     function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
@@ -128,7 +130,7 @@
     }
 
     // ============ AUTENTICAÇÃO COM GOOGLE ============
-    authBtn.addEventListener('click', () => {
+    authBtn.addEventListener('click', async () => {
       const clientId = clientIdInput.value.trim();
       if (!clientId) { showError(setupError, 'Por favor, insira o OAuth Client ID do Google Cloud.'); return; }
       hideError(setupError);
@@ -136,47 +138,29 @@
       authBtn.textContent = 'Conectando ao Google...';
       localStorage.setItem('scc10_client_id', clientId);
 
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.onload = () => {
-        try {
-          const client = google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: 'https://www.googleapis.com/auth/analytics.readonly',
-            callback: (r) => {
-              if (r.access_token) {
-                state.accessToken = r.access_token;
-                state.isDemo = false;
-                tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
-                localStorage.setItem('scc10_client_id', clientId);
-                localStorage.setItem('scc10_access_token', r.access_token);
-                localStorage.setItem('scc10_token_expires_at', String(tokenExpiresAt));
-                fetchProperties();
-              } else {
-                showError(setupError, 'Falha na autenticação Google.');
-                authBtn.disabled = false;
-                authBtn.textContent = 'Conectar com o Google';
-              }
-            },
-            error_callback: (e) => {
-              showError(setupError, 'Erro na autenticação: ' + (e.message || 'Verifique as permissões de Test User no console Google.'));
-              authBtn.disabled = false;
-              authBtn.textContent = 'Conectar com o Google';
+      try {
+        await googleAuth.requestAccessToken({
+          onToken: r => {
+            if (!r.access_token) {
+              showError(setupError, 'Falha na autenticação Google.');
+              return;
             }
-          });
-          client.requestAccessToken();
-        } catch (e) {
-          showError(setupError, 'Erro ao inicializar Google Identity: ' + e.message);
-          authBtn.disabled = false;
-          authBtn.textContent = 'Conectar com o Google';
-        }
-      };
-      script.onerror = () => {
-        showError(setupError, 'Não foi possível carregar a biblioteca do Google Identity Services.');
+            state.accessToken = r.access_token;
+            state.isDemo = false;
+            tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
+            localStorage.setItem('scc10_client_id', clientId);
+            localStorage.setItem('scc10_access_token', r.access_token);
+            localStorage.setItem('scc10_token_expires_at', String(tokenExpiresAt));
+            fetchProperties();
+          },
+          onError: e => showError(setupError, 'Erro na autenticação: ' + (e.message || 'Verifique as permissões de Test User no console Google.'))
+        });
+      } catch (e) {
+        showError(setupError, 'Erro ao inicializar Google Identity: ' + e.message);
+      } finally {
         authBtn.disabled = false;
         authBtn.textContent = 'Conectar com o Google';
-      };
-      document.body.appendChild(script);
+      }
     });
 
     // ============ LISTAR PROPRIEDADES ============
