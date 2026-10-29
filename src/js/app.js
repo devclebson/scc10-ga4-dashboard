@@ -648,13 +648,19 @@
             ${t.label}
           </button>
         `).join('')}
-        <label class="tabs-more" aria-label="Mais seções do dashboard">
-          <span>Mais</span>
-          <select id="more-tabs-select">
-            <option value="" disabled ${secondaryTabs.every(t => t.id !== state.activeTab) ? 'selected' : ''}>Selecionar seção</option>
-            ${secondaryTabs.map(t => `<option value="${t.id}" ${t.id === state.activeTab ? 'selected' : ''}>${t.label}</option>`).join('')}
-          </select>
-        </label>
+        <div class="tabs-more">
+          <button id="more-tabs-btn" class="more-tabs-btn" type="button" aria-expanded="false" aria-haspopup="menu">
+            <span class="hamburger-icon" aria-hidden="true">☰</span>
+            <span>Mais</span>
+          </button>
+          <div id="more-tabs-menu" class="more-tabs-menu" role="menu">
+            ${secondaryTabs.map(t => `
+              <button class="more-menu-item ${t.id === state.activeTab ? 'active' : ''}" type="button" role="menuitem" data-tab="${t.id}">
+                ${t.label}
+              </button>
+            `).join('')}
+          </div>
+        </div>
       `;
 
       tabsContainer.querySelectorAll('.tab').forEach(tab => {
@@ -666,10 +672,19 @@
         });
       });
 
-      $('more-tabs-select')?.addEventListener('change', event => {
-        state.activeTab = event.target.value;
-        tabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        renderTabContent();
+      const moreTabsButton = $('more-tabs-btn');
+      const moreTabsMenu = $('more-tabs-menu');
+      moreTabsButton?.addEventListener('click', () => {
+        const isOpen = moreTabsMenu?.classList.toggle('open');
+        moreTabsButton.setAttribute('aria-expanded', String(Boolean(isOpen)));
+      });
+      moreTabsMenu?.querySelectorAll('.more-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+          state.activeTab = item.dataset.tab;
+          moreTabsMenu.classList.remove('open');
+          moreTabsButton?.setAttribute('aria-expanded', 'false');
+          renderDashboard();
+        });
       });
 
       renderTabContent();
