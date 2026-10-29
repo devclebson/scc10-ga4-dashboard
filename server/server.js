@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
-import { requestGa4Report } from './services/ga4-client.js';
+import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -123,6 +123,13 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/api/ga4/report') {
       const result = await proxyAnalyticsRequest(req, await readJson(req));
+      sendJson(res, result.status, result.data);
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/ga4/metadata') {
+      if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
+      const result = await getGa4Metadata(url.searchParams.get('propertyId'));
       sendJson(res, result.status, result.data);
       return;
     }

@@ -6,7 +6,14 @@ Dashboard editorial para acompanhamento de audiência do portal SCC10 usando Goo
 
 ## Estado atual
 
-A aplicação ainda é um frontend estático, mas sua estrutura inicial foi separada:
+A aplicação possui quatro entradas separadas:
+
+```text
+index.html            → inicialização e verificação do backend/GA4
+configuracao.html     → área administrativa
+dashboard.html        → monitor e relatórios
+ranking-teste.html    → teste isolado do ranking enriquecido
+```
 
 ```text
 index.html
@@ -71,13 +78,32 @@ Responsáveis por:
 
 ### Backend inicial
 
-O backend Node.js em `server/` já fornece a base para:
+O backend Node.js em `server/` já fornece:
 
 - centralizar as chamadas à API GA4;
 - registrar snapshots no SQLite;
-- fornecer endpoints próprios para o frontend.
+- fornecer endpoints próprios para o frontend;
+- autenticar no GA4 por Service Account;
+- armazenar configurações operacionais no SQLite;
+- expor status, configuração administrativa e metadados do GA4.
 
-Nesta primeira versão, o frontend envia o access token em memória ao backend, que o utiliza apenas para encaminhar a requisição à Google. A próxima evolução substituirá esse fluxo por credenciais mantidas exclusivamente no servidor.
+O fluxo principal usa Service Account no backend. O OAuth do navegador permanece apenas como fallback legado no `app.js` durante a migração.
+
+### Fluxo de inicialização
+
+```text
+index.html
+   ├── backend indisponível/configuração inválida → configuracao.html
+   └── consulta GA4 válida → dashboard.html
+```
+
+### Área administrativa
+
+`configuracao.html` administra propriedade GA4, período padrão, comparação e intervalo do coletor. Os valores são persistidos na tabela `app_settings`. O token administrativo é recebido apenas em memória e nunca salvo no navegador.
+
+### Ranking enriquecido
+
+`ranking-teste.html` consulta os metadados da propriedade e permite testar a combinação de `pageTitle`, categoria, autor e data de publicação com `screenPageViews`, sem alterar o ranking realtime existente.
 
 ## Regras de segurança
 
@@ -85,6 +111,8 @@ Nesta primeira versão, o frontend envia o access token em memória ao backend, 
 - Não versionar `.env` ou credenciais.
 - Usar apenas permissões de leitura do GA4.
 - Não colocar credenciais de Service Account no frontend.
+- Não versionar arquivos JSON de Service Account.
+- Proteger endpoints administrativos com `SCC10_ADMIN_TOKEN` em produção.
 - Diferenciar dados reais de dados de demonstração.
 
 ## Fluxo planejado

@@ -24,3 +24,19 @@ O sistema deve identificar explicitamente se um valor vem de:
 - relatório intraday: dados do dia atual;
 - relatório histórico: intervalo escolhido pelo usuário;
 - snapshot local: dados coletados pelo backend.
+
+## Service Account no backend
+
+A autenticação principal passou a usar uma Service Account no backend. O navegador não precisa mais enviar access token para consultar o GA4. O OAuth permanece somente como fallback temporário para compatibilidade.
+
+## Entradas separadas
+
+`index.html` verifica a disponibilidade do backend e dos dados GA4 antes de abrir `dashboard.html`. Em caso de falha, encaminha o operador para `configuracao.html`. O dashboard não deve conter tela de login.
+
+## Teste isolado do ranking enriquecido
+
+Categoria, autor e data de publicação serão validados em `ranking-teste.html` antes de alterar o ranking realtime existente. A tela consulta os metadados técnicos da propriedade e executa um relatório histórico independente.
+
+## Configuração persistida
+
+Propriedade, período padrão, comparação e intervalo do coletor são persistidos na tabela SQLite `app_settings`. Credenciais e chaves privadas permanecem fora do banco e fora do frontend.

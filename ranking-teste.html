@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCC10 — Teste de Ranking Enriquecido</title>
+  <link rel="icon" href="portal_scc_10_logo.jpg">
+  <link rel="stylesheet" href="src/css/app.css">
+</head>
+<body>
+  <main class="container" role="main">
+    <section class="card ranking-test-page">
+      <div class="ranking-test-header">
+        <img class="dashboard-logo" src="Logo-SCC10-1-640x170.png" alt="SCC10">
+        <div>
+          <h1>Teste — Ranking Enriquecido</h1>
+          <p>Validação de categoria, autor e data de publicação usando os dados do GA4.</p>
+        </div>
+        <a class="btn btn-secondary btn-small" href="dashboard.html">Voltar ao Dashboard</a>
+      </div>
+
+      <div id="ranking-test-status" class="config-status loading">Carregando metadados do GA4...</div>
+      <div class="ranking-test-controls">
+        <label>Categoria<select id="dimension-category"></select></label>
+        <label>Autor<select id="dimension-author"></select></label>
+        <label>Data de publicação<select id="dimension-published"></select></label>
+        <label>Período<select id="ranking-test-range"><option value="today">Hoje</option><option value="30daysAgo" selected>Últimos 30 dias</option><option value="90daysAgo">Últimos 90 dias</option></select></label>
+        <button id="run-ranking-test" class="btn" type="button" disabled>Executar teste</button>
+      </div>
+
+      <div id="ranking-test-meta" class="ranking-test-meta"></div>
+      <div id="ranking-test-results" class="ranking-container"></div>
+    </section>
+  </main>
+  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || 'http://127.0.0.1:3001';</script>
+  <script type="module" src="src/js/ranking-test.js"></script>
+</body>
+</html>

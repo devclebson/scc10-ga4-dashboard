@@ -27,3 +27,15 @@ export async function requestGa4Report({ propertyId, reportType = 'standard', pa
   const data = await response.json();
   return { status: response.status, data };
 }
+
+export async function getGa4Metadata(propertyId) {
+  const normalizedPropertyId = propertyIdFrom(propertyId);
+  const accessToken = await getServiceAccountAccessToken();
+  if (!accessToken) throw new Error('Service Account não configurada no backend.');
+
+  const response = await fetch(`${DATA_API_BASE}/${normalizedPropertyId}/metadata`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const data = await response.json();
+  return { status: response.status, data };
+}

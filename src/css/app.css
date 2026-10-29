@@ -573,6 +573,24 @@
       flex-wrap: wrap;
     }
     .config-note { margin-top: 20px; font-size: 11px; }
+    .ranking-test-page { max-width: 1240px; margin: 32px auto; padding: 24px; }
+    .ranking-test-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .ranking-test-header .dashboard-logo { width: 110px; }
+    .ranking-test-header h1 { margin: 0 0 4px; font-size: 22px; }
+    .ranking-test-header p { margin: 0; color: var(--text-muted); font-size: 13px; }
+    .ranking-test-header .btn { margin-left: auto; }
+    .ranking-test-controls { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 10px; align-items: end; margin: 20px 0; }
+    .ranking-test-controls label { margin: 0; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+    .ranking-test-controls select { margin-top: 5px; font-size: 12px; }
+    .ranking-test-meta { color: var(--text-muted); font-size: 12px; margin-bottom: 14px; }
+    @media (max-width: 900px) {
+      .ranking-test-controls { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .ranking-test-page { margin: 12px auto; padding: 16px; }
+      .ranking-test-controls { grid-template-columns: 1fr; }
+      .ranking-test-header .btn { margin-left: 0; }
+    }
     .header-title {
       font-size: 20px;
       font-weight: 700;
