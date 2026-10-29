@@ -636,6 +636,13 @@
 
           pagesRt.rows.forEach(r => {
             const title = r.dimensionValues[0].value || 'SCC10 Notícia';
+            const normalizedTitle = title.toLocaleLowerCase('pt-BR').trim();
+            const isNonArticle = normalizedTitle === '(not set)'
+              || normalizedTitle === 'página inicial'
+              || normalizedTitle === 'página não encontrada'
+              || normalizedTitle.startsWith('ao vivo —')
+              || normalizedTitle.includes('rádio clube');
+            if (isNonArticle) return;
             const users = parseInt(r.metricValues[0].value) || 0;
             const views = parseInt(r.metricValues[1].value) || 0;
 
