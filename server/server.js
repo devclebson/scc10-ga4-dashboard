@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { getSnapshots, saveSnapshot } from './db.js';
+import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { requestGa4Report } from './services/ga4-client.js';
 
@@ -10,7 +10,7 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': 'http://localhost:3000',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Token',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   });
   res.end(JSON.stringify(payload));
@@ -27,6 +27,33 @@ function propertyIdFrom(value) {
   const propertyId = String(value || '').replace(/^properties\//, '');
   if (!/^\d+$/.test(propertyId)) throw new Error('propertyId inválido.');
   return propertyId;
+}
+
+function applicationConfig() {
+  const propertyId = getSetting('propertyId') || process.env.SCC10_PROPERTY_ID || null;
+  return {
+    propertyId,
+    defaultDateRange: getSetting('defaultDateRange') || '30',
+    compareEnabled: getSetting('compareEnabled') !== 'false',
+    collectorIntervalSeconds: Number(getSetting('collectorIntervalSeconds') || 30),
+    authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
+    configured: Boolean(propertyId && isServiceAccountConfigured())
+  };
+}
+
+function isAdminAuthorized(req) {
+  const expected = process.env.SCC10_ADMIN_TOKEN;
+  if (!expected) return req.headers.host?.startsWith('127.0.0.1') || req.headers.host?.startsWith('localhost');
+  return req.headers['x-admin-token'] === expected;
+}
+
+function validateConfig(body) {
+  const propertyId = propertyIdFrom(body.propertyId);
+  const allowedRanges = new Set(['7', 'today', '30', '90', '365']);
+  if (!allowedRanges.has(String(body.defaultDateRange))) throw new Error('Período padrão inválido.');
+  const interval = Number(body.collectorIntervalSeconds);
+  if (!Number.isInteger(interval) || interval < 15 || interval > 3600) throw new Error('Intervalo do coletor deve estar entre 15 e 3600 segundos.');
+  return { propertyId, defaultDateRange: String(body.defaultDateRange), compareEnabled: Boolean(body.compareEnabled), collectorIntervalSeconds: interval };
 }
 
 async function proxyAnalyticsRequest(req, body) {
@@ -65,17 +92,32 @@ const server = createServer(async (req, res) => {
         ok: true,
         service: 'scc10-backend',
         authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
+        adminAuthConfigured: Boolean(process.env.SCC10_ADMIN_TOKEN),
         time: new Date().toISOString()
       });
       return;
     }
 
     if (req.method === 'GET' && url.pathname === '/api/config') {
-      sendJson(res, 200, {
-        configured: Boolean(process.env.SCC10_PROPERTY_ID && isServiceAccountConfigured()),
-        propertyId: process.env.SCC10_PROPERTY_ID || null,
-        authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth'
-      });
+      const config = applicationConfig();
+      sendJson(res, 200, { configured: config.configured, propertyId: config.propertyId, authMode: config.authMode });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/admin/config') {
+      if (!isAdminAuthorized(req)) throw new Error('Acesso administrativo não autorizado.');
+      sendJson(res, 200, { ...applicationConfig(), adminAuthConfigured: Boolean(process.env.SCC10_ADMIN_TOKEN) });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/admin/config') {
+      if (!isAdminAuthorized(req)) throw new Error('Acesso administrativo não autorizado.');
+      const config = validateConfig(await readJson(req));
+      setSetting('propertyId', config.propertyId);
+      setSetting('defaultDateRange', config.defaultDateRange);
+      setSetting('compareEnabled', config.compareEnabled);
+      setSetting('collectorIntervalSeconds', config.collectorIntervalSeconds);
+      sendJson(res, 200, { ...applicationConfig(), saved: true });
       return;
     }
 

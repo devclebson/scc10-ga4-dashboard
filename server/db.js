@@ -24,6 +24,12 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_realtime_snapshots_property_time
     ON realtime_snapshots(property_id, captured_at);
+
+  CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 const insertSnapshot = db.prepare(`
@@ -62,4 +68,19 @@ export function saveSnapshot(snapshot) {
 
 export function getSnapshots({ propertyId, from, to, limit = 500 }) {
   return listSnapshots.all(propertyId, from || null, to || null, Math.min(Number(limit) || 500, 5000));
+}
+
+const getSettingStatement = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?');
+const setSettingStatement = db.prepare(`
+  INSERT INTO app_settings (setting_key, setting_value, updated_at)
+  VALUES (?, ?, ?)
+  ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = excluded.updated_at
+`);
+
+export function getSetting(key) {
+  return getSettingStatement.get(key)?.setting_value ?? null;
+}
+
+export function setSetting(key, value) {
+  setSettingStatement.run(key, String(value), new Date().toISOString());
 }

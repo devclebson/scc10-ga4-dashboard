@@ -15,6 +15,24 @@
       <p class="setup-description">Acesso administrativo ao backend e à propriedade GA4 configurada.</p>
 
       <div id="config-status" class="config-status">Verificando backend...</div>
+      <div class="admin-form">
+        <label for="admin-token">Token administrativo</label>
+        <input id="admin-token" type="password" autocomplete="off" placeholder="Use apenas se configurado no servidor">
+        <label for="config-property-input">Propriedade GA4</label>
+        <input id="config-property-input" type="text" inputmode="numeric" placeholder="309943616">
+        <label for="config-range-input">Período padrão</label>
+        <select id="config-range-input">
+          <option value="7">Últimos 7 dias</option>
+          <option value="today">Hoje</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="365">Últimos 12 meses</option>
+        </select>
+        <label class="admin-check"><input id="config-compare-input" type="checkbox"> Comparar com o período anterior</label>
+        <label for="config-interval-input">Intervalo do coletor (segundos)</label>
+        <input id="config-interval-input" type="number" min="15" max="3600" step="1" value="30">
+        <button id="save-config" class="btn" type="button">Salvar configuração</button>
+      </div>
       <dl class="config-details">
         <dt>Propriedade GA4</dt>
         <dd id="config-property">--</dd>
