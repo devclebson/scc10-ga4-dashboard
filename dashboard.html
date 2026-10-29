@@ -50,7 +50,14 @@
       </div>
 
       <div class="tabs" id="tabs" role="tablist" aria-label="Seções do Analytics"></div>
-      <div id="tab-content" role="tabpanel" aria-live="polite"></div>
+      <div id="tab-content" role="tabpanel" aria-live="polite">
+        <div id="dashboard-loading" class="dashboard-loading card">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <h2>Carregando dados do Analytics</h2>
+          <p>O backend está consultando os relatórios históricos e realtime do GA4.</p>
+          <small>Esta tela será preenchida assim que os dados estiverem disponíveis.</small>
+        </div>
+      </div>
     </div>
   </div>
   <script>window.SCC10_API_BASE = window.SCC10_API_BASE || 'http://127.0.0.1:3001';</script>

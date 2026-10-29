@@ -585,7 +585,16 @@
 
       } catch (e) {
         if (selectError) showError(selectError, 'Falha ao carregar métricas: ' + e.message);
-        else console.error('Falha ao carregar métricas:', e);
+        else {
+          console.error('Falha ao carregar métricas:', e);
+          tabContent.innerHTML = `
+            <div class="dashboard-loading card">
+              <h2>Não foi possível carregar os dados</h2>
+              <p>${escapeHtml(e.message)}</p>
+              <button class="btn btn-secondary" type="button" onclick="location.reload()">Tentar novamente</button>
+            </div>
+          `;
+        }
       } finally {
         if (viewBtn) {
           viewBtn.disabled = false;
