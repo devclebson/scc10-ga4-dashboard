@@ -639,12 +639,23 @@
         { id: 'local-history', label: 'Histórico Local', icon: 'database' }
       ];
 
-      tabsContainer.innerHTML = tabs.map(t => `
-        <button class="tab ${t.id === 'editorial' ? 'editorial-tab' : ''} ${t.id === state.activeTab ? 'active' : ''}" 
-                data-tab="${t.id}" role="tab" aria-selected="${t.id === state.activeTab}">
-          ${t.label}
-        </button>
-      `).join('');
+      const primaryTabs = tabs.slice(0, 4);
+      const secondaryTabs = tabs.slice(4);
+      tabsContainer.innerHTML = `
+        ${primaryTabs.map(t => `
+          <button class="tab ${t.id === 'editorial' ? 'editorial-tab' : ''} ${t.id === state.activeTab ? 'active' : ''}" 
+                  data-tab="${t.id}" role="tab" aria-selected="${t.id === state.activeTab}">
+            ${t.label}
+          </button>
+        `).join('')}
+        <label class="tabs-more" aria-label="Mais seções do dashboard">
+          <span>Mais</span>
+          <select id="more-tabs-select">
+            <option value="" disabled ${secondaryTabs.every(t => t.id !== state.activeTab) ? 'selected' : ''}>Selecionar seção</option>
+            ${secondaryTabs.map(t => `<option value="${t.id}" ${t.id === state.activeTab ? 'selected' : ''}>${t.label}</option>`).join('')}
+          </select>
+        </label>
+      `;
 
       tabsContainer.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -653,6 +664,12 @@
           tab.classList.add('active');
           renderTabContent();
         });
+      });
+
+      $('more-tabs-select')?.addEventListener('change', event => {
+        state.activeTab = event.target.value;
+        tabsContainer.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        renderTabContent();
       });
 
       renderTabContent();
