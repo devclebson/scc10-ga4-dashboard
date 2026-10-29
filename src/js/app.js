@@ -93,7 +93,7 @@
       showScreen(setupScreen);
     }
 
-    const { runReport, runRealtimeReport, saveSnapshot } = createAnalyticsApi({
+    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots } = createAnalyticsApi({
       getAccessToken: () => state.accessToken,
       getDateRange: () => state.dateRange,
       isTokenExpired,
@@ -634,7 +634,8 @@
         { id: 'audience', label: 'Público & Dispositivos', icon: 'users' },
         { id: 'engagement', label: 'Engajamento & Páginas', icon: 'fileText' },
         { id: 'user flow', label: 'Fluxo de Leitores', icon: 'link' },
-        { id: 'conversions', label: 'Metas & Conversões', icon: 'target' }
+        { id: 'conversions', label: 'Metas & Conversões', icon: 'target' },
+        { id: 'local-history', label: 'Histórico Local', icon: 'database' }
       ];
 
       tabsContainer.innerHTML = tabs.map(t => `
@@ -665,7 +666,8 @@
         'audience': renderAudience,
         'engagement': renderEngagement,
         'user flow': renderUserFlow,
-        'conversions': renderConversions
+        'conversions': renderConversions,
+        'local-history': renderLocalHistory
       }[state.activeTab];
 
       if (fn) fn();
@@ -1244,7 +1246,83 @@
     }
 
     // =========================================================
-    // 7. ABA: METAS E CONVERSÕES (CONVERSIONS) — CORRIGIDA
+    // 7. ABA: HISTÓRICO LOCAL DOS SNAPSHOTS
+    // =========================================================
+    async function renderLocalHistory() {
+      if (!state.selectedProperty || state.isDemo) {
+        tabContent.innerHTML = `
+          <div class="card" style="text-align:center; padding:40px 20px;">
+            <h3 style="font-size:18px; margin-bottom:8px;">Histórico local indisponível no modo demonstração</h3>
+            <p style="color:var(--text-muted);">Conecte-se a uma propriedade GA4 real para consultar os snapshots salvos pelo backend.</p>
+          </div>
+        `;
+        return;
+      }
+
+      tabContent.innerHTML = `
+        <div class="card">
+          <div class="section-title">Histórico local de audiência</div>
+          <p style="color:var(--text-muted); margin-top:8px;">Carregando snapshots salvos no SQLite...</p>
+        </div>
+      `;
+
+      try {
+        const snapshots = await getSnapshots({ propertyId: state.selectedProperty.id, limit: 100 });
+        if (!snapshots.length) {
+          tabContent.innerHTML = `
+            <div class="card" style="text-align:center; padding:40px 20px;">
+              <h3 style="font-size:18px; margin-bottom:8px;">Nenhum snapshot registrado</h3>
+              <p style="color:var(--text-muted);">O histórico será preenchido após os próximos ciclos de atualização realtime.</p>
+            </div>
+          `;
+          return;
+        }
+
+        tabContent.innerHTML = `
+          <div class="card">
+            <div class="flex-between">
+              <div>
+                <div class="section-title">Snapshots salvos localmente</div>
+                <div style="color:var(--text-muted); font-size:13px; margin-top:4px;">${snapshots.length} registros consultados</div>
+              </div>
+            </div>
+            <div class="ranking-container">
+              <table class="ranking-table">
+                <thead>
+                  <tr>
+                    <th>Data e hora</th>
+                    <th style="text-align:right;">Leitores (5m)</th>
+                    <th style="text-align:right;">Leitores (30m)</th>
+                    <th style="text-align:right;">Visualizações</th>
+                    <th style="text-align:right;">Matérias</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${snapshots.map(snapshot => `
+                    <tr>
+                      <td>${escapeHtml(new Date(snapshot.captured_at).toLocaleString('pt-BR'))}</td>
+                      <td style="text-align:right;">${formatNumber(snapshot.active_users_5m)}</td>
+                      <td style="text-align:right;">${formatNumber(snapshot.active_users_30m)}</td>
+                      <td style="text-align:right;">${formatNumber(snapshot.page_views_30m)}</td>
+                      <td style="text-align:right;">${formatNumber(snapshot.active_articles_count)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        tabContent.innerHTML = `
+          <div class="card">
+            <div class="error">Não foi possível carregar o histórico local: ${escapeHtml(error.message)}</div>
+          </div>
+        `;
+      }
+    }
+
+    // =========================================================
+    // 8. ABA: METAS E CONVERSÕES (CONVERSIONS) — CORRIGIDA
     // =========================================================
     function renderConversions() {
       const convRows = state.data.conversions?.rows || [];
