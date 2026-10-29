@@ -3,6 +3,8 @@ export const state = {
   properties: [],
   selectedProperty: null,
   dateRange: '30',
+  customStartDate: '',
+  customEndDate: '',
   compareEnabled: true,
   activeTab: 'editorial',
   data: {},

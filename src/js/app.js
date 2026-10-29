@@ -22,6 +22,8 @@
     const setupError = $('setup-error');
     const propertiesList = $('properties-list');
     const dateRangeSelect = $('date-range');
+    const customStartDateInput = $('custom-start-date');
+    const customEndDateInput = $('custom-end-date');
     const compareToggle = $('compare-toggle');
     const viewBtn = $('view-btn');
     const selectError = $('select-error');
@@ -228,10 +230,24 @@
 
     dateRangeSelect.addEventListener('change', () => {
       state.dateRange = dateRangeSelect.value;
+      state.customStartDate = '';
+      state.customEndDate = '';
+      customStartDateInput.value = '';
+      customEndDateInput.value = '';
       storage.setDateRange(state.dateRange);
     });
     compareToggle.addEventListener('change', () => state.compareEnabled = compareToggle.checked);
-    viewBtn.addEventListener('click', () => loadAllAnalytics());
+    viewBtn.addEventListener('click', () => {
+      const start = customStartDateInput.value;
+      const end = customEndDateInput.value;
+      if ((start && !end) || (!start && end) || (start && end && start > end)) {
+        showError(selectError, 'Informe um intervalo válido: a data inicial deve ser anterior ou igual à data final.');
+        return;
+      }
+      state.customStartDate = start;
+      state.customEndDate = end;
+      loadAllAnalytics();
+    });
     refreshBtn.addEventListener('click', () => {
       if (state.isDemo) {
         loadDemoData();
@@ -431,6 +447,31 @@
     }
 
 
+    function getHistoricalDateRange() {
+      if (state.customStartDate && state.customEndDate) {
+        const start = new Date(`${state.customStartDate}T00:00:00Z`);
+        const end = new Date(`${state.customEndDate}T00:00:00Z`);
+        const days = Math.round((end - start) / 86400000) + 1;
+        const previousEnd = new Date(start.getTime() - 86400000);
+        const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
+        const format = date => date.toISOString().slice(0, 10);
+        return {
+          start: state.customStartDate,
+          end: state.customEndDate,
+          previousStart: format(previousStart),
+          previousEnd: format(previousEnd)
+        };
+      }
+
+      const days = parseInt(state.dateRange, 10);
+      return {
+        start: `${days}daysAgo`,
+        end: 'today',
+        previousStart: `${days * 2}daysAgo`,
+        previousEnd: `${days + 1}daysAgo`
+      };
+    }
+
     // ============ CARREGAMENTO DE TODOS OS RELATÓRIOS ============
     async function loadAllAnalytics(forceRefresh = false) {
       if (!state.selectedProperty) return;
@@ -439,25 +480,23 @@
       viewBtn.textContent = 'Carregando dados...';
 
       const propId = state.selectedProperty.id.replace('properties/', '');
-      const days = parseInt(state.dateRange);
-      const prevStart = (days * 2) + 'daysAgo';
-      const prevEnd = (days + 1) + 'daysAgo';
+      const historicalRange = getHistoricalDateRange();
 
       try {
         // Consultas históricas com paginação correta (limit=500)
         const [overview, channels, geo, devices, pages, events] = await Promise.all([
-          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500),
-          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15),
-          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10),
-          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5),
-          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25),
-          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15)
+          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.start, historicalRange.end),
+          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.start, historicalRange.end),
+          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10, historicalRange.start, historicalRange.end),
+          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5, historicalRange.start, historicalRange.end),
+          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25, historicalRange.start, historicalRange.end),
+          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15, historicalRange.start, historicalRange.end)
         ]);
 
         let conversions = null;
         try {
           // Busca eventos com conversões reais
-          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10);
+          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10, historicalRange.start, historicalRange.end);
         } catch (e) {
           console.log('Conversões não disponíveis ou vazias');
         }
@@ -468,8 +507,8 @@
         if (state.compareEnabled) {
           try {
             const [prevOverview, prevChannels] = await Promise.all([
-              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, prevStart, prevEnd),
-              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, prevStart, prevEnd)
+              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.previousStart, historicalRange.previousEnd),
+              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.previousStart, historicalRange.previousEnd)
             ]);
             state.prevData = { overview: prevOverview, channels: prevChannels };
           } catch (e) {

@@ -583,6 +583,26 @@
     .history-filters .btn {
       white-space: nowrap;
     }
+    .report-custom-dates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 10px;
+      margin: -6px 0 16px;
+    }
+    .report-custom-dates label {
+      margin: 0;
+      font-size: 11px;
+    }
+    .report-custom-dates input {
+      min-width: 0;
+      margin: 0;
+      font-size: 13px;
+    }
+    .report-custom-dates small {
+      grid-column: 1 / -1;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
     @media (max-width: 600px) {
       .metrics-grid { grid-template-columns: 1fr; }
       .ranking-table th:nth-child(4), .ranking-table td:nth-child(4) { display: none; }
