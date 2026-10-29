@@ -558,10 +558,43 @@
       .tab { padding-left: 10px; padding-right: 10px; font-size: 13px; }
       .tabs-more { padding-left: 4px; }
     }
+    .history-filters {
+      display: flex;
+      align-items: end;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .history-filters label {
+      min-width: 145px;
+      margin: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .history-filters select,
+    .history-filters input {
+      display: block;
+      width: 100%;
+      margin-top: 4px;
+      font-size: 12px;
+    }
+    .history-filters .btn {
+      white-space: nowrap;
+    }
     @media (max-width: 600px) {
       .metrics-grid { grid-template-columns: 1fr; }
       .ranking-table th:nth-child(4), .ranking-table td:nth-child(4) { display: none; }
       .tabs { flex-wrap: wrap; padding-bottom: 8px; }
       .tabs-more { width: auto; margin-left: auto; padding: 8px 0 0; }
+      .history-filters {
+        width: 100%;
+        justify-content: stretch;
+      }
+      .history-filters label,
+      .history-filters .btn {
+        flex: 1 1 100%;
+      }
     }
-  
+  }

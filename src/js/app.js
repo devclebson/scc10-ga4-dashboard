@@ -8,6 +8,8 @@
     let realtimeInterval = null;
     let tokenExpiresAt = null;
     let localHistoryRange = '6h';
+    let localHistoryCustomFrom = '';
+    let localHistoryCustomTo = '';
 
     // ============ ELEMENTOS DOM ============
     const $ = id => document.getElementById(id);
@@ -1293,8 +1295,12 @@
       }
 
       const rangeHours = { '2h': 2, '6h': 6, 'today': 24, '7d': 24 * 7 }[localHistoryRange];
-      const to = new Date();
-      const from = new Date(to.getTime() - rangeHours * 60 * 60 * 1000);
+      const customFrom = localHistoryCustomFrom ? new Date(localHistoryCustomFrom) : null;
+      const customTo = localHistoryCustomTo ? new Date(localHistoryCustomTo) : null;
+      const to = customTo && !Number.isNaN(customTo.getTime()) ? customTo : new Date();
+      const from = customFrom && !Number.isNaN(customFrom.getTime())
+        ? customFrom
+        : new Date(to.getTime() - rangeHours * 60 * 60 * 1000);
 
       tabContent.innerHTML = `
         <div class="card">
@@ -1303,14 +1309,17 @@
               <div class="section-title">Histórico local de audiência</div>
               <p style="color:var(--text-muted); margin-top:8px;">Carregando snapshots salvos no SQLite...</p>
             </div>
-            <label style="min-width:170px; margin:0;">Período
-              <select id="local-history-range" style="margin:4px 0 0;">
+            <div class="history-filters">
+              <label>Período<select id="local-history-range">
                 <option value="2h" ${localHistoryRange === '2h' ? 'selected' : ''}>Últimas 2 horas</option>
                 <option value="6h" ${localHistoryRange === '6h' ? 'selected' : ''}>Últimas 6 horas</option>
                 <option value="today" ${localHistoryRange === 'today' ? 'selected' : ''}>Hoje</option>
                 <option value="7d" ${localHistoryRange === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
-              </select>
-            </label>
+              </select></label>
+              <label>De<input id="local-history-from" type="datetime-local" value="${localHistoryCustomFrom}"></label>
+              <label>Até<input id="local-history-to" type="datetime-local" value="${localHistoryCustomTo}"></label>
+              <button id="local-history-apply" class="btn btn-small" type="button">Aplicar</button>
+            </div>
           </div>
         </div>
       `;
@@ -1332,16 +1341,19 @@
             <div class="flex-between">
               <div>
                 <div class="section-title">Snapshots salvos localmente</div>
-                <div style="color:var(--text-muted); font-size:13px; margin-top:4px;">${snapshots.length} registros consultados</div>
-              </div>
-              <label style="min-width:170px; margin:0;">Período
-                <select id="local-history-range" style="margin:4px 0 0;">
-                  <option value="2h" ${localHistoryRange === '2h' ? 'selected' : ''}>Últimas 2 horas</option>
-                  <option value="6h" ${localHistoryRange === '6h' ? 'selected' : ''}>Últimas 6 horas</option>
-                  <option value="today" ${localHistoryRange === 'today' ? 'selected' : ''}>Hoje</option>
-                  <option value="7d" ${localHistoryRange === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
-                </select>
-              </label>
+                  <div style="color:var(--text-muted); font-size:13px; margin-top:4px;">${snapshots.length} registros consultados</div>
+                </div>
+                <div class="history-filters">
+                  <label>Período<select id="local-history-range">
+                    <option value="2h" ${localHistoryRange === '2h' ? 'selected' : ''}>Últimas 2 horas</option>
+                    <option value="6h" ${localHistoryRange === '6h' ? 'selected' : ''}>Últimas 6 horas</option>
+                    <option value="today" ${localHistoryRange === 'today' ? 'selected' : ''}>Hoje</option>
+                    <option value="7d" ${localHistoryRange === '7d' ? 'selected' : ''}>Últimos 7 dias</option>
+                  </select></label>
+                  <label>De<input id="local-history-from" type="datetime-local" value="${localHistoryCustomFrom}"></label>
+                  <label>Até<input id="local-history-to" type="datetime-local" value="${localHistoryCustomTo}"></label>
+                  <button id="local-history-apply" class="btn btn-small" type="button">Aplicar</button>
+                </div>
             </div>
             <div class="chart-container" style="margin:20px 0;"><canvas id="local-history-chart"></canvas></div>
             <div class="ranking-container">
@@ -1373,6 +1385,20 @@
 
         $('local-history-range')?.addEventListener('change', event => {
           localHistoryRange = event.target.value;
+          localHistoryCustomFrom = '';
+          localHistoryCustomTo = '';
+          renderLocalHistory();
+        });
+
+        $('local-history-apply')?.addEventListener('click', () => {
+          const from = $('local-history-from')?.value || '';
+          const to = $('local-history-to')?.value || '';
+          if (!from || !to || new Date(from) >= new Date(to)) {
+            showToast('Informe um intervalo válido: a data inicial deve ser anterior à final.', 'warning');
+            return;
+          }
+          localHistoryCustomFrom = from;
+          localHistoryCustomTo = to;
           renderLocalHistory();
         });
 
