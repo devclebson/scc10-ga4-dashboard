@@ -453,6 +453,23 @@
       margin: 12vh auto;
       padding: 32px;
     }
+    .bootstrap-card { text-align: center; }
+    .bootstrap-progress {
+      width: 100%;
+      height: 6px;
+      margin: 20px 0 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+    .bootstrap-progress span {
+      display: block;
+      width: 10%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary), var(--purple));
+      transition: width .35s ease;
+    }
     .setup-logo {
       width: 180px;
       height: auto;

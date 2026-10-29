@@ -3,146 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SCC10 — Monitor Editorial & Analytics GA4</title>
-  <meta name="description" content="Dashboard de monitoramento editorial em tempo real e analytics GA4 para portal de notícias.">
-  <script>
-    if (!window.location.pathname.endsWith('/configuracao.html') && !window.location.pathname.endsWith('/dashboard.html')) {
-      window.location.replace('configuracao.html');
-    }
-  </script>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233266ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='13 2 3 14 12 14 11 22 21 10 12 10 13 2'/></svg>">
-  <script src="node_modules/chart.js/dist/chart.umd.js"></script>
-  <script src="node_modules/d3/dist/d3.min.js"></script>
-  <script src="node_modules/d3-sankey/dist/d3-sankey.min.js"></script>
-      <link rel="stylesheet" href="src/css/app.css">
+  <title>SCC10 — Inicializando</title>
+  <meta name="description" content="Inicialização do dashboard SCC10.">
+  <link rel="icon" href="portal_scc_10_logo.jpg">
+  <link rel="stylesheet" href="src/css/app.css">
 </head>
 <body>
-  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <main class="container" role="main">
+    <section class="setup-page-card card bootstrap-card" aria-live="polite">
+      <img class="setup-logo" src="Logo-SCC10-1-640x170.png" alt="SCC10">
+      <h1>Monitor Editorial SCC10</h1>
+      <p id="bootstrap-message" class="setup-description">Verificando a configuração do servidor GA4...</p>
+      <div class="bootstrap-progress" aria-hidden="true"><span id="bootstrap-progress-bar"></span></div>
+      <div id="bootstrap-status" class="config-status loading">Inicializando</div>
+      <a id="bootstrap-config-link" class="btn btn-secondary hidden" href="configuracao.html">Abrir Configuração</a>
+    </section>
+  </main>
+  <script>
+    const API_BASE = window.SCC10_API_BASE || 'http://127.0.0.1:3001';
+    const message = document.querySelector('#bootstrap-message');
+    const status = document.querySelector('#bootstrap-status');
+    const progress = document.querySelector('#bootstrap-progress-bar');
+    const configLink = document.querySelector('#bootstrap-config-link');
 
-  <div class="container" role="main">
-    <!-- TELA 1: SETUP E AUTENTICAÇÃO -->
-    <div id="setup-screen">
-      <div style="display:flex; justify-content:center; align-items:center; min-height:80vh;">
-        <div class="card" style="max-width: 480px; width: 100%; padding: 32px;">
-          <div style="text-align:center; margin-bottom: 24px;">
-            <div style="width: 56px; height: 56px; background: linear-gradient(135deg, var(--primary), var(--purple)); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 14px;">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            </div>
-            <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 6px;">SCC10 — Monitor Editorial</h2>
-            <p style="font-size: 14px; color: var(--text-muted);">Painel de audiência em tempo real e analytics oficial GA4.</p>
-          </div>
+    function showFailure(text) {
+      message.textContent = text;
+      status.textContent = 'Configuração necessária';
+      status.className = 'config-status error';
+      progress.style.width = '0%';
+      configLink.classList.remove('hidden');
+    }
 
-          <label for="client-id-input">ID de Cliente OAuth (Google Cloud)</label>
-          <input type="text" id="client-id-input" placeholder="123456789-abc.apps.googleusercontent.com" aria-label="OAuth Client ID">
-          <div id="setup-error" class="error hidden"></div>
+    async function bootstrap() {
+      try {
+        progress.style.width = '35%';
+        const [healthResponse, configResponse] = await Promise.all([
+          fetch(`${API_BASE}/api/health`),
+          fetch(`${API_BASE}/api/config`)
+        ]);
+        if (!healthResponse.ok || !configResponse.ok) throw new Error('Backend indisponível.');
+        const health = await healthResponse.json();
+        const config = await configResponse.json();
+        if (!health.ok || !config.configured || !config.propertyId) {
+          throw new Error('O servidor GA4 ainda não está configurado.');
+        }
 
-          <button id="auth-btn" class="btn" style="width:100%; margin-bottom: 12px;">Conectar com o Google</button>
-          
-          <div style="display:flex; align-items:center; gap:12px; margin: 16px 0; color:#94a3b8; font-size:12px; text-transform:uppercase;">
-            <div style="flex:1; height:1px; background:#e2e8f0;"></div>
-            ou
-            <div style="flex:1; height:1px; background:#e2e8f0;"></div>
-          </div>
+        progress.style.width = '70%';
+        message.textContent = 'Configuração validada. Carregando dados do dashboard...';
+        status.textContent = `GA4 conectado — propriedade ${config.propertyId}`;
+        status.className = 'config-status success';
+        await new Promise(resolve => setTimeout(resolve, 500));
+        progress.style.width = '100%';
+        window.location.replace('dashboard.html');
+      } catch (error) {
+        showFailure(`${error.message} Redirecionando para a área administrativa.`);
+      }
+    }
 
-          <button id="demo-btn" class="btn btn-demo" style="width:100%">Explorar com Dados Simulados (Demo SCC10)</button>
-          <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 14px;">
-            O modo de demonstração simula dados de um portal de notícias real com matérias, origens e curva de audiência.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- TELA 2: SELEÇÃO DE PROPRIEDADE -->
-    <div id="select-screen" class="hidden" style="max-width: 520px; margin: 40px auto;">
-      <div class="card">
-        <div class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>
-          Selecionar Propriedade GA4
-        </div>
-        <div id="properties-list" style="max-height: 240px; overflow-y: auto; margin-bottom: 16px;"></div>
-
-        <label for="date-range">Período para Relatórios Históricos</label>
-        <select id="date-range">
-          <option value="7">Últimos 7 dias</option>
-          <option value="today">Hoje</option>
-          <option value="30" selected>Últimos 30 dias</option>
-          <option value="90">Últimos 90 dias</option>
-          <option value="365">Últimos 12 meses</option>
-          <option value="custom">Personalizado</option>
-        </select>
-
-        <div id="report-custom-dates" class="report-custom-dates hidden">
-          <label for="custom-start-date">Data inicial personalizada</label>
-          <input id="custom-start-date" type="date">
-          <label for="custom-end-date">Data final personalizada</label>
-          <input id="custom-end-date" type="date">
-          <small>Preencha as duas datas para substituir o período predefinido.</small>
-        </div>
-
-        <label style="display:flex; align-items:center; gap:8px; margin-bottom: 16px; cursor: pointer;">
-          <input type="checkbox" id="compare-toggle" checked style="width:auto; margin:0;">
-          Comparar com o período imediatamente anterior
-        </label>
-
-        <div id="select-error" class="error hidden"></div>
-        <button id="view-btn" class="btn" style="width:100%" disabled>Carregar Dashboard</button>
-      </div>
-    </div>
-
-    <!-- TELA 3: DASHBOARD PRINCIPAL -->
-    <div id="dashboard-screen" class="hidden">
-      <!-- HEADER DO DASHBOARD -->
-      <div class="header">
-        <div class="header-left">
-          <img class="dashboard-logo" src="Logo-SCC10-1-640x170.png" alt="SCC10">
-          <span class="badge" id="mode-badge">GA4 AO VIVO</span>
-          <div id="realtime-badge" class="realtime hidden">
-            <span class="realtime-dot"></span>
-            <span id="realtime-count">0 leitores agora</span>
-          </div>
-          <div id="last-updated-text" style="font-size: 12px; color: var(--text-muted);">
-            Atualizado às --:--:--
-          </div>
-        </div>
-
-        <div class="dashboard-date-controls" aria-label="Filtro global de período">
-          <select id="dashboard-date-range" title="Período dos relatórios">
-            <option value="7">7 dias</option>
-            <option value="today">Hoje</option>
-            <option value="30" selected>30 dias</option>
-            <option value="90">90 dias</option>
-            <option value="365">12 meses</option>
-            <option value="custom">Personalizado</option>
-          </select>
-          <div id="dashboard-custom-dates" class="dashboard-custom-dates hidden">
-            <input id="dashboard-start-date" type="date" aria-label="Data inicial">
-            <input id="dashboard-end-date" type="date" aria-label="Data final">
-          </div>
-          <button id="dashboard-date-apply" class="btn btn-secondary btn-small" type="button">Aplicar</button>
-        </div>
-
-        <div class="header-actions">
-          <button id="tv-toggle-btn" class="btn btn-tv btn-small" title="Modo TV / Tela Cheia">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
-            Modo TV Redação
-          </button>
-          <button id="refresh-btn" class="btn btn-secondary btn-small" title="Atualizar agora">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-            Atualizar
-          </button>
-          <button id="change-btn" class="btn btn-secondary btn-small">Trocar Propriedade</button>
-          <button id="logout-btn" class="btn btn-secondary btn-small" title="Desconectar conta">Sair</button>
-        </div>
-      </div>
-
-      <!-- ABAS -->
-      <div class="tabs" id="tabs" role="tablist" aria-label="Seções do Analytics"></div>
-      
-      <!-- CONTEÚDO DA ABA ATIVA -->
-      <div id="tab-content" role="tabpanel" aria-live="polite"></div>
-    </div>
-  </div>
-
-    <script type="module" src="src/js/app.js"></script>
+    bootstrap();
+  </script>
 </body>
 </html>
