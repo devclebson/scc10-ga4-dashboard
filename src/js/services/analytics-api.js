@@ -1,6 +1,13 @@
 const BACKEND_API_BASE = window.SCC10_API_BASE || 'http://localhost:3001';
 
 export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpired, onTokenExpired }) {
+  function requestHeaders() {
+    const token = getAccessToken();
+    return token
+      ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+      : { 'Content-Type': 'application/json' };
+  }
+
   async function runReport(propId, dims, metrics, limit = 500, startDate = null, endDate = null) {
     if (isTokenExpired()) {
       onTokenExpired();
@@ -25,10 +32,7 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
 
     const res = await fetch(`${BACKEND_API_BASE}/api/ga4/report`, {
       method: 'POST',
-      headers: {
-        Authorization: 'Bearer ' + getAccessToken(),
-        'Content-Type': 'application/json'
-      },
+      headers: requestHeaders(),
       body: JSON.stringify({ propertyId: propId, reportType: 'standard', payload })
     });
 
@@ -46,10 +50,7 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     try {
       const res = await fetch(`${BACKEND_API_BASE}/api/ga4/report`, {
         method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + getAccessToken(),
-          'Content-Type': 'application/json'
-        },
+        headers: requestHeaders(),
         body: JSON.stringify({ propertyId: propId, reportType: 'realtime', payload: body })
       });
       const data = await res.json();
@@ -88,5 +89,12 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     return data.snapshots || [];
   }
 
-  return { runReport, runRealtimeReport, saveSnapshot, getSnapshots };
+  async function getBackendConfig() {
+    const res = await fetch(`${BACKEND_API_BASE}/api/config`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Falha ao consultar a configuração do backend.');
+    return data;
+  }
+
+  return { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig };
 }

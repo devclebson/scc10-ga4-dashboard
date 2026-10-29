@@ -70,6 +70,15 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/config') {
+      sendJson(res, 200, {
+        configured: Boolean(process.env.SCC10_PROPERTY_ID && isServiceAccountConfigured()),
+        propertyId: process.env.SCC10_PROPERTY_ID || null,
+        authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth'
+      });
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/ga4/report') {
       const result = await proxyAnalyticsRequest(req, await readJson(req));
       sendJson(res, result.status, result.data);

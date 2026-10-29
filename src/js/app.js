@@ -109,7 +109,7 @@
       showScreen(setupScreen);
     }
 
-    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots } = createAnalyticsApi({
+    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig } = createAnalyticsApi({
       getAccessToken: () => state.accessToken,
       getDateRange: () => state.dateRange,
       isTokenExpired,
@@ -1593,8 +1593,30 @@
       showToast('Relatório CSV exportado com sucesso!', 'success');
     }
 
+    async function initBackendSession() {
+      try {
+        const config = await getBackendConfig();
+        if (!config.configured || !config.propertyId) return false;
+
+        state.accessToken = null;
+        state.isDemo = false;
+        state.selectedProperty = {
+          id: `properties/${config.propertyId}`,
+          name: 'SCC10 — GA4 Backend',
+          account: 'Configuração do servidor'
+        };
+        modeBadge.textContent = 'GA4 BACKEND';
+        modeBadge.classList.remove('demo-badge');
+        await loadAllAnalytics();
+        return true;
+      } catch (error) {
+        console.info('Backend sem configuração automática:', error.message);
+        return false;
+      }
+    }
+
     // ============ INICIALIZAÇÃO DE SESSÃO SALVA (F5 RESILIENTE) ============
-    function initSavedSession() {
+    async function initSavedSession() {
       storage.clearLegacyTokens();
 
       // 1. Restaurar Client ID digitado
@@ -1615,6 +1637,8 @@
         state.dateRange = savedDateRange;
         dateRangeSelect.value = savedDateRange;
       }
+
+      if (await initBackendSession()) return;
 
       // 4. Tentar renovar a sessão silenciosamente sem persistir o token.
       if (!savedClientId) return;
