@@ -13,6 +13,7 @@ index.html            → inicialização e verificação do backend/GA4
 configuracao.html     → área administrativa
 dashboard.html        → monitor e relatórios
 ranking-teste.html    → teste isolado do ranking enriquecido
+materia.html          → análise detalhada de uma matéria e suas origens
 ```
 
 ```text
@@ -119,6 +120,8 @@ SQLite / articles
 ```
 
 O cache é atualizado pelo endpoint `/api/articles/sync` e por uma rotina automática a cada 15 minutos. O frontend cruza os títulos do realtime com o cache por título normalizado; quando não existe correspondência, mantém o ranking e informa que os metadados históricos estão indisponíveis.
+
+Quando a matéria possui URL, o ranking apresenta o link `Ver análise da matéria`. A tela `materia.html` consulta `/api/articles/detail` e mostra a distribuição de visualizações por `sessionDefaultChannelGroup`, incluindo visualizações, sessões e participação percentual.
 
 As imagens oficiais ficam em `assets/images/`, com nomes estáveis e sem depender de arquivos soltos na raiz.
 

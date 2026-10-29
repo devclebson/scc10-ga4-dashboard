@@ -121,6 +121,10 @@ const findArticleStatement = db.prepare(`
   SELECT * FROM articles WHERE property_id = ? AND normalized_title = ? LIMIT 1
 `);
 
+const findArticleByPathStatement = db.prepare(`
+  SELECT * FROM articles WHERE property_id = ? AND page_path = ? LIMIT 1
+`);
+
 export function upsertArticle(article) {
   upsertArticleStatement.run(
     article.propertyId,
@@ -137,4 +141,8 @@ export function upsertArticle(article) {
 
 export function findArticle(propertyId, normalizedTitle) {
   return findArticleStatement.get(propertyId, normalizedTitle) || null;
+}
+
+export function findArticleByPath(propertyId, pagePath) {
+  return findArticleByPathStatement.get(propertyId, pagePath) || null;
 }

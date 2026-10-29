@@ -1,4 +1,4 @@
-import { upsertArticle, findArticle } from '../db.js';
+import { upsertArticle, findArticle, findArticleByPath } from '../db.js';
 import { requestGa4Report } from './ga4-client.js';
 
 const ARTICLE_DIMENSIONS = [
@@ -56,6 +56,48 @@ export async function syncArticleMetadata(propertyId, startDate = '30daysAgo') {
     saved += 1;
   }
   return { fetched: result.data.rows?.length || 0, saved };
+}
+
+export async function getArticleDetail(propertyId, { title, pagePath, startDate = '30daysAgo' } = {}) {
+  const normalizedPropertyId = String(propertyId).replace(/^properties\//, '');
+  const cached = pagePath
+    ? findArticleByPath(normalizedPropertyId, pagePath)
+    : findArticle(normalizedPropertyId, normalizeTitle(title));
+  const resolvedPath = cached?.page_path || pagePath;
+  if (!resolvedPath) throw new Error('A matéria não possui URL suficiente para consultar os detalhes.');
+
+  const result = await requestGa4Report({
+    propertyId: normalizedPropertyId,
+    reportType: 'standard',
+    payload: {
+      dateRanges: [{ startDate, endDate: 'today' }],
+      dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+      metrics: [{ name: 'screenPageViews' }, { name: 'sessions' }, { name: 'activeUsers' }],
+      dimensionFilter: {
+        filter: {
+          fieldName: 'pagePath',
+          stringFilter: { matchType: 'EXACT', value: resolvedPath }
+        }
+      },
+      orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+      limit: 20
+    }
+  });
+  if (result.status >= 400 || result.data.error) {
+    throw new Error(result.data.error?.message || 'Falha ao consultar as origens da matéria.');
+  }
+
+  return {
+    article: cached ? {
+      title: cached.title,
+      pagePath: cached.page_path,
+      category: cached.category,
+      author: cached.author,
+      publishedAt: cached.published_at,
+      historicalViews: cached.historical_views
+    } : { title: title || resolvedPath, pagePath: resolvedPath },
+    traffic: result.data.rows || []
+  };
 }
 
 export function enrichArticle(propertyId, title) {

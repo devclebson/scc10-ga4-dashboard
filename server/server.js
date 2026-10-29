@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
-import { enrichArticle, syncArticleMetadata } from './services/article-metadata.js';
+import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -152,6 +152,15 @@ const server = createServer(async (req, res) => {
       const titles = Array.isArray(body.titles) ? body.titles.slice(0, 100) : [];
       const articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
       sendJson(res, 200, { articles });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/articles/detail') {
+      if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
+      const body = await readJson(req);
+      const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
+      const detail = await getArticleDetail(propertyId, body);
+      sendJson(res, 200, detail);
       return;
     }
 

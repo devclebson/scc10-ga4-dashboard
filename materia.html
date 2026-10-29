@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCC10 — Detalhes da Matéria</title>
+  <link rel="icon" href="assets/images/scc10-mark.jpg">
+  <link rel="stylesheet" href="src/css/app.css">
+</head>
+<body>
+  <main class="container" role="main">
+    <section class="card article-detail-page">
+      <header class="article-detail-header">
+        <div class="article-detail-brand">
+          <img class="dashboard-logo" src="assets/images/scc10-logo.png" alt="SCC10">
+          <div>
+            <p class="eyebrow">ANÁLISE EDITORIAL</p>
+            <h1 id="article-detail-title">Carregando matéria...</h1>
+            <p id="article-detail-path" class="article-detail-path"></p>
+          </div>
+        </div>
+        <a class="btn btn-secondary" href="dashboard.html">Voltar ao dashboard</a>
+      </header>
+
+      <div id="article-detail-status" class="article-detail-status">Consultando dados históricos do GA4...</div>
+      <section id="article-detail-content" class="hidden">
+        <div id="article-detail-meta" class="article-detail-meta"></div>
+        <div class="article-detail-grid">
+          <div class="card article-detail-panel">
+            <div class="section-title">Origem das visualizações</div>
+            <p class="panel-description">Distribuição das visualizações por canal de aquisição no período selecionado.</p>
+            <div id="article-traffic-chart" class="article-traffic-chart"></div>
+          </div>
+          <div class="card article-detail-panel">
+            <div class="section-title">Detalhamento por origem</div>
+            <div class="ranking-container">
+              <table class="ranking-table article-traffic-table">
+                <thead><tr><th>Origem</th><th style="text-align:right">Visualizações</th><th style="text-align:right">Sessões</th><th style="text-align:right">Participação</th></tr></thead>
+                <tbody id="article-traffic-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="src/js/materia.js"></script>
+</body>
+</html>

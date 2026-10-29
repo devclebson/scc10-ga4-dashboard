@@ -1059,6 +1059,12 @@
         const metadataHtml = metadataParts.length
           ? `<div class="article-meta">${metadataParts.join('')}</div>`
           : '<div class="article-meta article-meta-empty">Metadados históricos indisponíveis</div>';
+        const detailUrl = p.url
+          ? `materia.html#propertyId=${encodeURIComponent(state.selectedProperty?.id?.replace('properties/', '') || '')}&title=${encodeURIComponent(p.title)}&path=${encodeURIComponent(p.url)}`
+          : null;
+        const detailActionHtml = detailUrl
+          ? `<a class="article-detail-action" href="${detailUrl}">Ver análise da matéria</a>`
+          : '';
 
         return `
           <tr>
@@ -1067,6 +1073,7 @@
               ${titleHtml}
               ${metadataHtml}
               ${urlHtml}
+              ${detailActionHtml}
             </td>
             <td style="text-align:right; font-weight:700; color:var(--success); font-size:16px;">
               ${p.users.toLocaleString('pt-BR')}
