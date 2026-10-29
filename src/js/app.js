@@ -1,32 +1,6 @@
     import { formatDuration, formatNumber, formatCurrency, calcChange, escapeHtml } from './utils/formatters.js';
-
-    // ============ ESTADO GLOBAL ============
-    const state = {
-      accessToken: null,
-      properties: [],
-      selectedProperty: null,
-      dateRange: '30',
-      compareEnabled: true,
-      activeTab: 'editorial', // Padrão: Monitor Editorial
-      data: {},
-      prevData: {},
-      realtime: null,
-      isDemo: false,
-      isTvMode: false,
-      // Dados específicos do Monitor Editorial
-      editorial: {
-        activeUsers5m: 0,
-        activeUsers30m: 0,
-        pageViews30m: 0,
-        activeArticlesCount: 0,
-        rankingLimit: 20,
-        topPages: [],
-        minuteSeries: [],
-        channelsToday: [],
-        lastUpdated: null,
-        previousRankings: new Map() // url -> activeUsers anterior
-      }
-    };
+    import { state } from './state.js';
+    import { createAnalyticsApi } from './services/analytics-api.js';
 
     let charts = {};
     let realtimeInterval = null;
@@ -115,6 +89,13 @@
       showToast('Por favor, faça login novamente com o Google.', 'warning');
       showScreen(setupScreen);
     }
+
+    const { runReport, runRealtimeReport } = createAnalyticsApi({
+      getAccessToken: () => state.accessToken,
+      getDateRange: () => state.dateRange,
+      isTokenExpired,
+      onTokenExpired: handleTokenExpiry
+    });
 
     // ============ MODO TV / REDAÇÃO ============
     tvToggleBtn.addEventListener('click', () => {
@@ -461,59 +442,6 @@
       };
     }
 
-    // ============ REQUISIÇÕES REAIS À API DO GA4 ============
-    
-    // 1. Relatório Padrão (Histórico) - CORRIGIDO com limit: 500 e metricAggregations
-    async function runReport(propId, dims, metrics, limit = 500, startDate = null, endDate = null) {
-      if (isTokenExpired()) { handleTokenExpiry(); throw new Error('Token expirado.'); }
-      const start = startDate || state.dateRange + 'daysAgo';
-      const end = endDate || 'today';
-
-      const payload = {
-        dateRanges: [{ startDate: start, endDate: end }],
-        dimensions: dims.map(name => ({ name })),
-        metrics: metrics.map(name => ({ name })),
-        metricAggregations: ['TOTAL'], // Garante o cálculo correto do período sem distorção
-        limit
-      };
-
-      if (dims[0] === 'date') {
-        payload.orderBys = [{ dimension: { dimensionName: 'date' }, desc: false }];
-      } else if (metrics.length > 0) {
-        payload.orderBys = [{ metric: { metricName: metrics[0] }, desc: true }];
-      }
-
-      const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + state.accessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      return data;
-    }
-
-    // 2. Relatório de Tempo Real (Realtime API)
-    async function runRealtimeReport(propId, body) {
-      if (isTokenExpired()) { handleTokenExpiry(); return null; }
-      try {
-        const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + state.accessToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (data.error) {
-          console.warn('Realtime API error:', data.error.message);
-          return null;
-        }
-        return data;
-      } catch (e) {
-        console.error('Erro em runRealtimeReport:', e);
-        return null;
-      }
-    }
 
     // ============ CARREGAMENTO DE TODOS OS RELATÓRIOS ============
     async function loadAllAnalytics(forceRefresh = false) {
