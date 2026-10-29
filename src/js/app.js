@@ -30,6 +30,7 @@
     const dashboardEndDateInput = $('dashboard-end-date');
     const dashboardDateApplyBtn = $('dashboard-date-apply');
     const dashboardCustomDates = $('dashboard-custom-dates');
+    const dashboardDateControls = document.querySelector('.dashboard-date-controls');
     const compareToggle = $('compare-toggle');
     const viewBtn = $('view-btn');
     const selectError = $('select-error');
@@ -783,6 +784,7 @@
     }
 
     function renderTabContent() {
+      dashboardDateControls?.classList.toggle('hidden', state.activeTab === 'editorial');
       destroyCharts();
       const fn = {
         'editorial': renderEditorial,
