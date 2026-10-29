@@ -513,9 +513,10 @@
           realtimeCount.textContent = `${state.realtime} leitores agora`;
         }
 
-        // 2. Ranking de matérias: URL + Título
+        // 2. Ranking de matérias por título.
+        // A Realtime API não suporta unifiedPagePathScreen; URL será enriquecida pelo backend futuramente.
         const pagesRt = await runRealtimeReport(propId, {
-          dimensions: [{ name: 'unifiedPagePathScreen' }, { name: 'unifiedScreenName' }],
+          dimensions: [{ name: 'unifiedScreenName' }],
           metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
           orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
           limit: 60
@@ -526,23 +527,20 @@
           const cleanArticles = [];
 
           pagesRt.rows.forEach(r => {
-            const path = r.dimensionValues[0].value || '';
-            const title = r.dimensionValues[1].value || 'SCC10 Notícia';
+            const title = r.dimensionValues[0].value || 'SCC10 Notícia';
             const users = parseInt(r.metricValues[0].value) || 0;
             const views = parseInt(r.metricValues[1].value) || 0;
 
-            // Ignora arquivos estáticos e telas de login
-            if (path.includes('.jpg') || path.includes('.png') || path.includes('wp-admin') || path.includes('/feed')) return;
-
             // Tendência baseada no snapshot anterior em memória
-            const prevUsers = state.editorial.previousRankings.get(path) || users;
+            const rankingKey = title;
+            const prevUsers = state.editorial.previousRankings.get(rankingKey) || users;
             let trend = 'stable';
             if (users > prevUsers + 4) trend = 'hot';
             else if (users > prevUsers) trend = 'up';
             else if (users < prevUsers) trend = 'down';
 
-            newMap.set(path, users);
-            cleanArticles.push({ url: path, title, users, views, trend });
+            newMap.set(rankingKey, users);
+            cleanArticles.push({ url: '', title, users, views, trend });
           });
 
           state.editorial.previousRankings = newMap;
@@ -871,16 +869,20 @@
         else if (p.trend === 'up') trendHtml = '<span class="article-trend trend-up">↑ Subindo</span>';
         else if (p.trend === 'down') trendHtml = '<span class="article-trend trend-down">↓ Caindo</span>';
 
-        const fullUrl = p.url.startsWith('http') ? p.url : `https://scc10.com.br${p.url}`;
+        const fullUrl = p.url ? (p.url.startsWith('http') ? p.url : `https://scc10.com.br${p.url}`) : null;
+        const titleHtml = fullUrl
+          ? `<a href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" class="article-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</a>`
+          : `<span class="article-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</span>`;
+        const urlHtml = p.url
+          ? `<div class="article-url">${escapeHtml(p.url)}</div>`
+          : `<div class="article-url">URL não disponível no relatório realtime</div>`;
 
         return `
           <tr>
             <td><span class="rank-num ${rankClass}">${rank}</span></td>
             <td class="article-title-cell">
-              <a href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" class="article-title" title="${escapeHtml(p.title)}">
-                ${escapeHtml(p.title)}
-              </a>
-              <div class="article-url">${escapeHtml(p.url)}</div>
+              ${titleHtml}
+              ${urlHtml}
             </td>
             <td style="text-align:right; font-weight:700; color:var(--success); font-size:16px;">
               ${p.users.toLocaleString('pt-BR')}

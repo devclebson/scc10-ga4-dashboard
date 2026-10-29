@@ -69,15 +69,15 @@ Responsáveis por:
 - tratamento de erros;
 - validações.
 
-### Backend futuro
+### Backend inicial
 
-O backend Node.js deverá:
+O backend Node.js em `server/` já fornece a base para:
 
-- proteger as credenciais Google;
-- centralizar as chamadas à API;
-- manter cache;
+- centralizar as chamadas à API GA4;
 - registrar snapshots no SQLite;
-- fornecer uma API própria para o frontend.
+- fornecer endpoints próprios para o frontend.
+
+Nesta primeira versão, o frontend envia o access token em memória ao backend, que o utiliza apenas para encaminhar a requisição à Google. A próxima evolução substituirá esse fluxo por credenciais mantidas exclusivamente no servidor.
 
 ## Regras de segurança
 

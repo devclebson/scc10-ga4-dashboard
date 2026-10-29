@@ -1,4 +1,4 @@
-const DATA_API_BASE = 'https://analyticsdata.googleapis.com/v1beta/properties';
+const BACKEND_API_BASE = window.SCC10_API_BASE || 'http://localhost:3001';
 
 export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpired, onTokenExpired }) {
   async function runReport(propId, dims, metrics, limit = 500, startDate = null, endDate = null) {
@@ -23,13 +23,13 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
       payload.orderBys = [{ metric: { metricName: metrics[0] }, desc: true }];
     }
 
-    const res = await fetch(`${DATA_API_BASE}/${propId}:runReport`, {
+    const res = await fetch(`${BACKEND_API_BASE}/api/ga4/report`, {
       method: 'POST',
       headers: {
         Authorization: 'Bearer ' + getAccessToken(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ propertyId: propId, reportType: 'standard', payload })
     });
 
     const data = await res.json();
@@ -44,13 +44,13 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     }
 
     try {
-      const res = await fetch(`${DATA_API_BASE}/${propId}:runRealtimeReport`, {
+      const res = await fetch(`${BACKEND_API_BASE}/api/ga4/report`, {
         method: 'POST',
         headers: {
           Authorization: 'Bearer ' + getAccessToken(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ propertyId: propId, reportType: 'realtime', payload: body })
       });
       const data = await res.json();
       if (data.error) {

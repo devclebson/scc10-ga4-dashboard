@@ -4,7 +4,9 @@
   "description": "Dashboard editorial do SCC10 com analytics GA4 e monitoramento em tempo real.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npx serve . -l 3000",
+    "backend": "node server/server.js",
+    "test:syntax": "node --check src/js/app.js && node --check server/server.js && node --check server/db.js"
   },
   "repository": {
     "type": "git",
