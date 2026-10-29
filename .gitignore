@@ -3,3 +3,7 @@
 node_modules/
 .env
 data/
+
+# Credenciais Google Cloud / Service Account
+ga4-dashboard-portal-*.json
+*service-account*.json
