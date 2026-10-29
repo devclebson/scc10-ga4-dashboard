@@ -93,7 +93,7 @@
       showScreen(setupScreen);
     }
 
-    const { runReport, runRealtimeReport } = createAnalyticsApi({
+    const { runReport, runRealtimeReport, saveSnapshot } = createAnalyticsApi({
       getAccessToken: () => state.accessToken,
       getDateRange: () => state.dateRange,
       isTokenExpired,
@@ -590,6 +590,20 @@
         } catch (e) {
           console.warn('Tráfego do dia intraday não disponível:', e.message);
         }
+
+        saveSnapshot({
+          propertyId: propId,
+          capturedAt: new Date().toISOString(),
+          activeUsers5m: state.editorial.activeUsers5m,
+          activeUsers30m: state.editorial.activeUsers30m,
+          pageViews30m: state.editorial.pageViews30m,
+          activeArticlesCount: state.editorial.activeArticlesCount,
+          payload: {
+            topPages: state.editorial.topPages,
+            channelsToday: state.editorial.channelsToday,
+            minuteSeries: state.editorial.minuteSeries
+          }
+        }).catch(error => console.warn('Snapshot local não salvo:', error.message));
 
         state.editorial.lastUpdated = new Date().toLocaleTimeString('pt-BR');
         lastUpdatedText.textContent = `Atualizado às ${state.editorial.lastUpdated}`;

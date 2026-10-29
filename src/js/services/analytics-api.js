@@ -64,5 +64,16 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     }
   }
 
-  return { runReport, runRealtimeReport };
+  async function saveSnapshot(snapshot) {
+    const res = await fetch(`${BACKEND_API_BASE}/api/snapshots`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(snapshot)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Falha ao salvar snapshot.');
+    return data;
+  }
+
+  return { runReport, runRealtimeReport, saveSnapshot };
 }
