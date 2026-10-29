@@ -48,11 +48,33 @@
           throw new Error('O servidor GA4 ainda não está configurado.');
         }
 
-        progress.style.width = '70%';
-        message.textContent = 'Configuração validada. Carregando dados do dashboard...';
+        progress.style.width = '60%';
+        message.textContent = 'Configuração validada. Consultando dados do Analytics...';
         status.textContent = `GA4 conectado — propriedade ${config.propertyId}`;
         status.className = 'config-status success';
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const reportResponse = await fetch(`${API_BASE}/api/ga4/report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: config.propertyId,
+            reportType: 'standard',
+            payload: {
+              dateRanges: [{ startDate: 'today', endDate: 'today' }],
+              dimensions: [{ name: 'date' }],
+              metrics: [{ name: 'activeUsers' }],
+              limit: 1
+            }
+          })
+        });
+        const report = await reportResponse.json();
+        if (!reportResponse.ok || report.error) {
+          throw new Error(report.error?.message || 'Não foi possível carregar os dados do Analytics.');
+        }
+
+        progress.style.width = '85%';
+        message.textContent = 'Dados do Analytics disponíveis. Preparando o dashboard...';
+        status.textContent = `Dados validados — ${report.rowCount || 0} registro(s) encontrado(s)`;
+        await new Promise(resolve => setTimeout(resolve, 700));
         progress.style.width = '100%';
         window.location.replace('dashboard.html');
       } catch (error) {
