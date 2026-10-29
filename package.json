@@ -1,0 +1,26 @@
+{
+  "name": "ga4-analytics-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard editorial do SCC10 com analytics GA4 e monitoramento em tempo real.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devclebson/scc10-ga4-dashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/devclebson/scc10-ga4-dashboard/issues"
+  },
+  "homepage": "https://github.com/devclebson/scc10-ga4-dashboard#readme",
+  "dependencies": {
+    "chart.js": "^4.4.1",
+    "d3": "^7.8.5",
+    "d3-sankey": "^0.12.3"
+  }
+}
