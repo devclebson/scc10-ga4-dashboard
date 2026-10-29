@@ -67,7 +67,39 @@ Verifique:
 
 Esse teste não altera o ranking realtime existente.
 
-## 6. Testar o dashboard
+## 6. Sincronizar o cache de matérias
+
+O backend pode sincronizar os metadados históricos manualmente:
+
+```powershell
+curl -X POST http://127.0.0.1:3001/api/articles/sync `
+  -H "Content-Type: application/json" `
+  -d '{"propertyId":"309943616","startDate":"30daysAgo"}'
+```
+
+Resultado esperado: quantidade de linhas buscadas e salvas na tabela `articles`.
+O backend também executa essa sincronização automaticamente a cada 15 minutos.
+
+Para validar o cruzamento do realtime com o cache:
+
+```powershell
+curl -X POST http://127.0.0.1:3001/api/articles/enrich `
+  -H "Content-Type: application/json" `
+  -d '{"propertyId":"309943616","titles":["título de teste"]}'
+```
+
+## 7. Verificar imagens
+
+As imagens devem existir em:
+
+```text
+assets/images/scc10-logo.png
+assets/images/scc10-mark.jpg
+```
+
+Todas as telas principais devem carregar as imagens sem referência aos nomes antigos na raiz.
+
+## 8. Testar o dashboard
 
 ```powershell
 npx --yes agent-browser --headed open http://localhost:3000/dashboard.html
@@ -85,14 +117,14 @@ Carregando dados do Analytics
 
 Depois devem aparecer as abas do dashboard.
 
-## 7. Verificar erros
+## 9. Verificar erros
 
 ```powershell
 npx --yes agent-browser console
 npx --yes agent-browser errors
 ```
 
-## 8. Verificar sintaxe e alterações
+## 10. Verificar sintaxe e alterações
 
 ```powershell
 npm run test:syntax
@@ -101,7 +133,7 @@ node --check src/js/ranking-test.js
 git diff --check
 ```
 
-## 9. Encerrar o navegador
+## 11. Encerrar o navegador
 
 ```powershell
 npx --yes agent-browser close --all

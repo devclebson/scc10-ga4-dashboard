@@ -96,5 +96,16 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     return data;
   }
 
-  return { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig };
+  async function enrichArticles(propId, titles) {
+    const res = await fetch(`${BACKEND_API_BASE}/api/articles/enrich`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ propertyId: propId, titles })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Falha ao enriquecer matérias.');
+    return data.articles || {};
+  }
+
+  return { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig, enrichArticles };
 }

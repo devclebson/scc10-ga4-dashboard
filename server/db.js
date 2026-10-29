@@ -30,6 +30,23 @@ db.exec(`
     setting_value TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS articles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    normalized_title TEXT NOT NULL,
+    page_path TEXT,
+    category TEXT,
+    author TEXT,
+    published_at TEXT,
+    historical_views INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    UNIQUE(property_id, normalized_title)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_articles_property_title
+    ON articles(property_id, normalized_title);
 `);
 
 const insertSnapshot = db.prepare(`
@@ -83,4 +100,41 @@ export function getSetting(key) {
 
 export function setSetting(key, value) {
   setSettingStatement.run(key, String(value), new Date().toISOString());
+}
+
+const upsertArticleStatement = db.prepare(`
+  INSERT INTO articles (
+    property_id, title, normalized_title, page_path, category, author,
+    published_at, historical_views, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(property_id, normalized_title) DO UPDATE SET
+    title = excluded.title,
+    page_path = excluded.page_path,
+    category = excluded.category,
+    author = excluded.author,
+    published_at = excluded.published_at,
+    historical_views = excluded.historical_views,
+    updated_at = excluded.updated_at
+`);
+
+const findArticleStatement = db.prepare(`
+  SELECT * FROM articles WHERE property_id = ? AND normalized_title = ? LIMIT 1
+`);
+
+export function upsertArticle(article) {
+  upsertArticleStatement.run(
+    article.propertyId,
+    article.title,
+    article.normalizedTitle,
+    article.pagePath || null,
+    article.category || null,
+    article.author || null,
+    article.publishedAt || null,
+    Number(article.historicalViews) || 0,
+    new Date().toISOString()
+  );
+}
+
+export function findArticle(propertyId, normalizedTitle) {
+  return findArticleStatement.get(propertyId, normalizedTitle) || null;
 }

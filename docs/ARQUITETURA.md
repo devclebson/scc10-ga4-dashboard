@@ -105,6 +105,23 @@ index.html
 
 `ranking-teste.html` consulta os metadados da propriedade e permite testar a combinação de `pageTitle`, categoria, autor e data de publicação com `screenPageViews`, sem alterar o ranking realtime existente.
 
+O ranking operacional usa duas fontes:
+
+```text
+Realtime API
+   └── leitores e visualizações atuais
+
+Core Reporting API
+   └── categoria, autor, publicação, URL e visualizações históricas
+
+SQLite / articles
+   └── cache local dos metadados das matérias
+```
+
+O cache é atualizado pelo endpoint `/api/articles/sync` e por uma rotina automática a cada 15 minutos. O frontend cruza os títulos do realtime com o cache por título normalizado; quando não existe correspondência, mantém o ranking e informa que os metadados históricos estão indisponíveis.
+
+As imagens oficiais ficam em `assets/images/`, com nomes estáveis e sem depender de arquivos soltos na raiz.
+
 ## Regras de segurança
 
 - Não salvar access tokens no `localStorage` na arquitetura final.

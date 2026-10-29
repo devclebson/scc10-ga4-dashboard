@@ -2,9 +2,12 @@ import { createServer } from 'node:http';
 import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
+import { enrichArticle, syncArticleMetadata } from './services/article-metadata.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
+const ARTICLE_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+let articleSyncRunning = false;
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
@@ -134,6 +137,24 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/articles/sync') {
+      if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
+      const body = await readJson(req);
+      const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
+      const result = await syncArticleMetadata(propertyId, body.startDate || '30daysAgo');
+      sendJson(res, 200, result);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/articles/enrich') {
+      const body = await readJson(req);
+      const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
+      const titles = Array.isArray(body.titles) ? body.titles.slice(0, 100) : [];
+      const articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+      sendJson(res, 200, { articles });
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/snapshots') {
       const snapshot = await readJson(req);
       const result = saveSnapshot(snapshot);
@@ -159,6 +180,23 @@ const server = createServer(async (req, res) => {
   }
 });
 
+async function runScheduledArticleSync() {
+  if (articleSyncRunning || !isServiceAccountConfigured()) return;
+  const propertyId = applicationConfig().propertyId;
+  if (!propertyId) return;
+  articleSyncRunning = true;
+  try {
+    const result = await syncArticleMetadata(propertyId, '30daysAgo');
+    console.log(`Article metadata sync: ${result.saved}/${result.fetched} rows saved`);
+  } catch (error) {
+    console.warn(`Article metadata sync failed: ${error.message}`);
+  } finally {
+    articleSyncRunning = false;
+  }
+}
+
 server.listen(PORT, HOST, () => {
   console.log(`SCC10 backend listening at http://${HOST}:${PORT}`);
+  setTimeout(runScheduledArticleSync, 10000);
+  setInterval(runScheduledArticleSync, ARTICLE_SYNC_INTERVAL_MS);
 });

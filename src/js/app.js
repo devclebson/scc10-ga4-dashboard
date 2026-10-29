@@ -109,7 +109,7 @@
       showScreen(setupScreen);
     }
 
-    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig } = createAnalyticsApi({
+    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig, enrichArticles } = createAnalyticsApi({
       getAccessToken: () => state.accessToken,
       getDateRange: () => state.dateRange,
       isTokenExpired,
@@ -651,6 +651,16 @@
             cleanArticles.push({ url: '', title, users, views, trend });
           });
 
+          try {
+            const enriched = await enrichArticles(propId, cleanArticles.map(article => article.title));
+            cleanArticles.forEach(article => {
+              const metadata = enriched[article.title];
+              if (metadata) Object.assign(article, metadata, { url: metadata.pagePath || '' });
+            });
+          } catch (error) {
+            console.warn('Metadados históricos não disponíveis:', error.message);
+          }
+
           state.editorial.previousRankings = newMap;
           state.editorial.topPages = cleanArticles;
           state.editorial.activeArticlesCount = cleanArticles.length;
@@ -1032,12 +1042,21 @@
         const urlHtml = p.url
           ? `<div class="article-url">${escapeHtml(p.url)}</div>`
           : `<div class="article-url">URL não disponível no relatório realtime</div>`;
+        const metadata = [
+          p.category ? `Categoria: ${p.category}` : null,
+          p.author ? `Autor: ${p.author}` : null,
+          p.publishedAt ? `Publicado em: ${p.publishedAt}` : null
+        ].filter(Boolean).join(' · ');
+        const metadataHtml = metadata
+          ? `<div class="article-meta">${escapeHtml(metadata)}</div>`
+          : '<div class="article-meta">Metadados históricos indisponíveis</div>';
 
         return `
           <tr>
             <td><span class="rank-num ${rankClass}">${rank}</span></td>
             <td class="article-title-cell">
               ${titleHtml}
+              ${metadataHtml}
               ${urlHtml}
             </td>
             <td style="text-align:right; font-weight:700; color:var(--success); font-size:16px;">
