@@ -7,8 +7,8 @@
     "start": "npx serve . -l 3000",
     "backend": "node server/server.js",
     "admin:rotate-password": "node server/rotate-admin-password.js",
-    "test:syntax": "node --check src/js/app.js && node --check server/server.js && node --check server/db.js && node --check server/services/admin-auth.js && node --check server/rotate-admin-password.js && node --check tests/admin-password-rotation.test.js",
-    "test": "node --test tests/admin-password-rotation.test.js"
+    "test:syntax": "node --check src/js/app.js && node --check src/js/services/analytics-api.js && node --check server/server.js && node --check server/services/report-cache.js && node --check server/db.js && node --check server/services/admin-auth.js && node --check server/rotate-admin-password.js && node --check tests/admin-password-rotation.test.js && node --check tests/report-cache.test.js && node --check tests/analytics-api-cache.test.js",
+    "test": "node --test tests/*.test.js"
   },
   "repository": {
     "type": "git",

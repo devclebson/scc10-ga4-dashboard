@@ -137,6 +137,12 @@ O cache é atualizado pelo endpoint administrativo `/api/articles/sync` e por um
 
 Os leitores ativos em 5 e 30 minutos vêm de duas `minuteRanges` na mesma consulta realtime, evitando somar usuários repetidos entre minutos. As rotas públicas de relatórios usam somente a propriedade configurada com um limite global de 60 consultas por minuto; o coletor recua por 15 minutos quando o GA4 informa esgotamento de quota.
 
+### Cache inicial de relatórios históricos
+
+No modo Service Account, `POST /api/ga4/report` reutiliza por cinco minutos os relatórios históricos idênticos (propriedade, tipo e payload), inclusive entre abas e usuários. Requisições simultâneas iguais compartilham uma única chamada ao GA4. Erros não entram no cache; a memória é limitada a 128 entradas. Respostas realtime, OAuth e solicitações explícitas de `returnPropertyQuota` não são armazenadas. O botão Atualizar e a aplicação de filtros solicitam revalidação dos relatórios históricos mesmo durante o TTL; uso excessivo desses comandos ainda pode consumir quota. `/api/health` expõe somente contadores agregados do cache, sem dados de matérias ou credenciais. O limite público por minuto conta chamadas reais ao GA4, não acertos de cache.
+
+Esse cache é somente em memória e não acelera a primeira entrada após iniciar o backend; também não elimina o bloqueio inicial do dashboard esperando vários relatórios nem o fallback realtime ao encontrar snapshot desatualizado. Essas correções ficam em etapas próprias do plano de desempenho.
+
 Quando a matéria possui URL, o ranking apresenta o link `Ver análise da matéria`. A tela `materia.html` consulta `/api/articles/detail` e mostra a distribuição de visualizações por `sessionDefaultChannelGroup`, incluindo visualizações, sessões e participação percentual.
 
 As imagens oficiais ficam em `assets/images/`, com nomes estáveis e sem depender de arquivos soltos na raiz.
