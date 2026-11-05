@@ -5,6 +5,7 @@ import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthCo
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
 import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
 import { createAllowedOrigins } from './services/allowed-origins.js';
+import { createReportCache } from './services/report-cache.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -24,6 +25,7 @@ let channelsCache = [];
 let channelsCacheUpdatedAt = 0;
 let channelsCachePropertyId = null;
 let channelsCacheDay = null;
+const historicalReportCache = createReportCache();
 
 function sendJson(res, status, payload, extraHeaders = {}) {
   const origin = res.req?.headers.origin;
@@ -101,6 +103,7 @@ function validateConfig(body) {
 async function proxyAnalyticsRequest(req, body) {
   const token = req.headers.authorization;
   if (token?.startsWith('Bearer ')) {
+    assertPublicGa4Budget();
     const propertyId = propertyIdFrom(body.propertyId);
     const reportType = body.reportType === 'realtime' ? 'runRealtimeReport' : 'runReport';
     const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:${reportType}`, {
@@ -117,7 +120,13 @@ async function proxyAnalyticsRequest(req, body) {
   if (!isServiceAccountConfigured()) {
     throw new Error('Authorization Bearer ausente e Service Account não configurada.');
   }
-  return requestGa4Report({ ...body, propertyId: configuredPropertyIdFrom(body.propertyId) });
+  const propertyId = configuredPropertyIdFrom(body.propertyId);
+  const request = () => {
+    assertPublicGa4Budget();
+    return requestGa4Report({ ...body, propertyId });
+  };
+  if (body.reportType === 'realtime' || body.payload?.returnPropertyQuota) return request();
+  return historicalReportCache.get({ propertyId, reportType: 'standard', payload: body.payload || {} }, request, { forceRefresh: body.forceRefresh === true });
 }
 
 const server = createServer(async (req, res) => {
@@ -140,6 +149,7 @@ const server = createServer(async (req, res) => {
         authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
         adminAuthConfigured: isAdminAuthConfigured(),
         passwordLoginConfigured: isPasswordLoginConfigured(),
+        historicalReportCache: historicalReportCache.stats(),
         time: new Date().toISOString()
       });
       return;
@@ -192,7 +202,6 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/ga4/report') {
-      assertPublicGa4Budget();
       const result = await proxyAnalyticsRequest(req, await readJson(req));
       sendJson(res, result.status, result.data);
       return;

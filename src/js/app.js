@@ -542,18 +542,18 @@
       try {
         // Consultas históricas com paginação correta (limit=500)
         const [overview, channels, geo, devices, pages, events] = await Promise.all([
-          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.start, historicalRange.end),
-          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.start, historicalRange.end),
-          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10, historicalRange.start, historicalRange.end),
-          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5, historicalRange.start, historicalRange.end),
-          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25, historicalRange.start, historicalRange.end),
-          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15, historicalRange.start, historicalRange.end)
+          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15, historicalRange.start, historicalRange.end, forceRefresh)
         ]);
 
         let conversions = null;
         try {
           // Busca eventos com conversões reais
-          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10, historicalRange.start, historicalRange.end);
+          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10, historicalRange.start, historicalRange.end, forceRefresh);
         } catch (e) {
           console.log('Conversões não disponíveis ou vazias');
         }
@@ -564,8 +564,8 @@
         if (state.compareEnabled) {
           try {
             const [prevOverview, prevChannels] = await Promise.all([
-              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.previousStart, historicalRange.previousEnd),
-              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.previousStart, historicalRange.previousEnd)
+              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.previousStart, historicalRange.previousEnd, forceRefresh),
+              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.previousStart, historicalRange.previousEnd, forceRefresh)
             ]);
             state.prevData = { overview: prevOverview, channels: prevChannels };
           } catch (e) {
