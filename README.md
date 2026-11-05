@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Google%20Analytics-4-orange?style=for-the-badge&logo=google-analytics" alt="GA4">
   <img src="https://img.shields.io/badge/Status-Produção%20Editorial-green?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Modo%20TV-Full%20HD-blue?style=for-the-badge" alt="Modo TV">
-  <img src="https://img.shields.io/badge/Single%20File-HTML%2BJS-red?style=for-the-badge" alt="Single File">
+  <img src="https://img.shields.io/badge/Arquitetura-Frontend%20%2B%20Backend-red?style=for-the-badge" alt="Frontend e Backend">
 </p>
 
 <p align="center">
@@ -56,11 +56,24 @@
 git clone <URL_DO_SEU_REPOSITORIO>
 cd GA4-Analytics-Dashboard
 
-# 2. Inicie o servidor local (porta 3000)
-npx serve .
+# 2. Instale as dependências
+npm install
 
-# 3. Abra no navegador
-# http://localhost:3000
+# 3. Configure o backend com uma Service Account fora do repositório
+# PowerShell:
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
+$env:SCC10_PROPERTY_ID="309943616"
+$env:SCC10_ADMIN_USERNAME="admin"
+$env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"
+
+# 4. Inicie o backend (terminal 1)
+npm run backend
+
+# 5. Inicie o frontend (terminal 2)
+npm run start
+
+# 6. Abra no navegador
+# http://localhost:3000/
 ```
 
 ---
@@ -68,8 +81,35 @@ npx serve .
 ## 🔧 Configuração no Google Cloud
 
 1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Analytics Data API** e a **Google Analytics Admin API**.
-2. Na tela de consentimento OAuth, adicione o escopo `https://www.googleapis.com/auth/analytics.readonly`.
-3. Crie uma credencial de **ID do cliente OAuth 2.0 (Aplicativo da Web)**.
-4. Adicione como **Origens JavaScript autorizadas**:
-   - `http://localhost:3000`
-5. Cole o **Client ID** na tela inicial do dashboard e clique em **Conectar com o Google**.
+2. Crie uma **Service Account** e gere uma chave JSON na aba `Chaves`.
+3. Adicione o e-mail da Service Account ao gerenciamento de acesso da propriedade GA4 com permissão de leitura.
+4. Configure `GOOGLE_SERVICE_ACCOUNT_FILE` apontando para o JSON fora deste repositório.
+5. Configure o primeiro usuário administrativo com `SCC10_ADMIN_USERNAME` e `SCC10_ADMIN_PASSWORD`.
+6. Use `/api/health` e `/api/config` para confirmar `authMode: service-account` e `configured: true`.
+
+O OAuth do navegador permanece no código apenas como fallback legado durante a migração. O fluxo principal do projeto usa a Service Account no backend. `SCC10_ADMIN_TOKEN` permanece somente como fallback temporário na API. Instalações que usam apenas esse token devem configurar `SCC10_ADMIN_USERNAME` e `SCC10_ADMIN_PASSWORD` no backend e reiniciar o serviço para criar o primeiro usuário antes de administrar pela nova tela; o token sozinho não habilita o login visual.
+
+## 🧭 Estrutura atual
+
+```text
+index.html              inicialização e preflight GA4
+dashboard.html          dashboard principal
+configuracao.html       configuração operacional
+ranking-teste.html      experimento isolado de metadados
+materia.html            detalhe e origens de uma matéria
+src/js/                 estado, serviços, autenticação e renderização
+src/css/                estilos do dashboard
+server/                 API Node.js, autenticação, GA4 e SQLite
+data/                   banco local (ignorado pelo Git)
+docs/                   visão do produto, arquitetura, decisões, roadmap e testes
+```
+
+O plano de organização, limpeza e próximos upgrades está em `docs/PLANO-EVOLUCAO.md`.
+
+## ✅ Estado verificado
+
+- Service Account autenticada no backend.
+- Relatório GA4 real respondendo sem token no navegador.
+- Coletor realtime independente salvando snapshots a cada 30 segundos.
+- Dashboard carregando ranking, categorias, autores, URLs e métricas reais.
+- Histórico local alimentado pelo SQLite.

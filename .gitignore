@@ -2,5 +2,8 @@
 .DS_Store
 node_modules/
 .env
-package.json
-package-lock.json
+data/
+
+# Credenciais Google Cloud / Service Account
+ga4-dashboard-portal-*.json
+*service-account*.json

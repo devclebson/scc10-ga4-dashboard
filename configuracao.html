@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCC10 — Configuração</title>
+  <link rel="icon" href="assets/images/scc10-mark.jpg">
+  <link rel="stylesheet" href="src/css/app.css">
+</head>
+<body>
+  <div class="container" role="main">
+    <div class="setup-page-card card">
+      <img class="setup-logo" src="assets/images/scc10-logo.png" alt="SCC10">
+      <h1>Configuração do Dashboard</h1>
+      <p class="setup-description">Acesso administrativo ao backend e à propriedade GA4 configurada.</p>
+
+      <div id="config-status" class="config-status">Verificando backend...</div>
+      <div id="admin-login" class="admin-form">
+        <label for="admin-username">Usuário</label>
+        <input id="admin-username" type="text" autocomplete="username" placeholder="Usuário administrativo">
+        <label for="admin-password">Senha</label>
+        <input id="admin-password" type="password" autocomplete="current-password" placeholder="Senha administrativa">
+        <button id="login-admin" class="btn" type="button">Entrar</button>
+        <div id="login-error" class="config-status error hidden"></div>
+      </div>
+
+      <div id="admin-content" class="hidden">
+        <div class="admin-session-bar">
+          <span>Usuário: <strong id="admin-session-user">--</strong></span>
+          <button id="logout-admin" class="btn btn-secondary btn-small" type="button">Sair</button>
+        </div>
+        <div class="admin-form">
+          <label for="config-property-input">Propriedade GA4</label>
+          <input id="config-property-input" type="text" inputmode="numeric" placeholder="309943616">
+          <label for="config-range-input">Período padrão</label>
+          <select id="config-range-input">
+            <option value="7">Últimos 7 dias</option>
+            <option value="today">Hoje</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="365">Últimos 12 meses</option>
+          </select>
+          <label class="admin-check"><input id="config-compare-input" type="checkbox"> Comparar com o período anterior</label>
+          <label for="config-interval-input">Intervalo do coletor (segundos)</label>
+          <input id="config-interval-input" type="number" min="15" max="3600" step="1" value="30">
+          <button id="save-config" class="btn" type="button">Salvar configuração</button>
+        </div>
+      </div>
+      <dl class="config-details">
+        <dt>Propriedade GA4</dt>
+        <dd id="config-property">--</dd>
+        <dt>Modo de autenticação</dt>
+        <dd id="config-auth">--</dd>
+        <dt>Backend</dt>
+        <dd id="config-backend">--</dd>
+      </dl>
+
+      <div class="setup-actions">
+        <a id="open-dashboard" class="btn" href="dashboard.html">Abrir Dashboard</a>
+        <a class="btn btn-secondary" href="ranking-teste.html">Testar Ranking Enriquecido</a>
+        <button id="refresh-config" class="btn btn-secondary" type="button">Verificar novamente</button>
+      </div>
+      <p class="config-note">As credenciais permanecem no servidor. Não coloque o JSON da Service Account nesta página.</p>
+    </div>
+  </div>
+  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || `http://${location.hostname || '127.0.0.1'}:3001`;</script>
+  <script type="module" src="src/js/config-app.js"></script>
+</body>
+</html>
