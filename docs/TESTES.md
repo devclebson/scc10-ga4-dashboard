@@ -87,6 +87,13 @@ Verifique:
 
 Esse teste não altera o ranking realtime existente.
 
+### Ranking operacional
+
+Abra `http://localhost:3000/ranking.html` ou use “Ver ranking completo” no Monitor Editorial.
+Verifique a prévia Top 5 no Monitor, a seleção Top 10/20/50 na página exclusiva, o link para análise da matéria e o horário da última coleta.
+No painel de rede do navegador, a nova página deve consultar `/api/config`, `/api/snapshots` e `/api/articles/enrich`, mas não `/api/ga4/report`.
+Se o coletor parar, o status deve indicar “Dados desatualizados” após 90 segundos, sem consultar o GA4 por conta própria.
+
 ## 6. Sincronizar o cache de matérias
 
 O backend pode sincronizar os metadados históricos manualmente após login administrativo:

@@ -17,7 +17,7 @@ export const state = {
     activeUsers30m: 0,
     pageViews30m: 0,
     activeArticlesCount: 0,
-    rankingLimit: 20,
+
     topPages: [],
     minuteSeries: [],
     channelsToday: [],
