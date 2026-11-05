@@ -51,6 +51,8 @@
 
 ## 🚀 Como Executar Localmente
 
+Para testar em um container LXC no Proxmox com Ubuntu Server, HTTPS, serviço systemd e credencial protegida, siga [Instalação Ubuntu/Proxmox](docs/DEPLOY-UBUNTU-PROXMOX.md). O JSON da Service Account fica fora do repositório e da pasta pública, em `/etc/scc10/credentials/ga4.json`; as opções não secretas ficam em `/etc/scc10/scc10.env`.
+
 ```bash
 # 1. Clone o repositório
 git clone <URL_DO_SEU_REPOSITORIO>

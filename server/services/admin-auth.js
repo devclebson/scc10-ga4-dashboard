@@ -51,6 +51,15 @@ export function ensureBootstrapAdmin() {
   return true;
 }
 
+export function bootstrapAdminUser(username, password) {
+  const name = String(username || '').trim();
+  if (!name) throw new Error('Informe o nome do usuário administrativo.');
+  if (String(password).length < 16) throw new Error('A senha deve ter pelo menos 16 caracteres.');
+  if (hasAdminUser()) throw new Error('Já existe um usuário administrativo; use a rotação de senha.');
+  createAdminUser({ username: name, passwordHash: hashPassword(password), role: 'admin' });
+  return true;
+}
+
 export function isAdminAuthConfigured() {
   return Boolean(process.env.SCC10_ADMIN_TOKEN || hasAdminUser() || (process.env.SCC10_ADMIN_USERNAME && process.env.SCC10_ADMIN_PASSWORD));
 }

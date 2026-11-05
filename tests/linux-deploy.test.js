@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
+
+function apiBase(location, override) {
+  const source = readFileSync(new URL('../src/js/api-base.js', import.meta.url), 'utf8');
+  const context = { window: { SCC10_API_BASE: override }, location };
+  runInNewContext(source, context);
+  return context.window.SCC10_API_BASE;
+}
+
+test('acesso remoto usa API no mesmo domínio HTTPS; desenvolvimento mantém porta 3001', () => {
+  assert.equal(apiBase({ hostname: 'scc10.interno', port: '', origin: 'https://scc10.interno' }), 'https://scc10.interno');
+  assert.equal(apiBase({ hostname: 'localhost', port: '3000', origin: 'http://localhost:3000' }), 'http://localhost:3001');
+  assert.equal(apiBase({ hostname: '127.0.0.1', port: '3000', origin: 'http://127.0.0.1:3000' }), 'http://127.0.0.1:3001');
+  assert.equal(apiBase({ hostname: 'scc10.interno', port: '', origin: 'https://scc10.interno' }, 'https://api.interno'), 'https://api.interno');
+});
+
+test('origem pública exata é aceita; valores inválidos ou outras origens são rejeitados', async () => {
+  const { createAllowedOrigins } = await import('../server/services/allowed-origins.js');
+  const origins = createAllowedOrigins('https://scc10.interno');
+  assert.equal(origins.has('https://scc10.interno'), true);
+  assert.equal(origins.has('https://outro.interno'), false);
+  assert.equal(origins.has('http://localhost:3000'), true);
+  assert.throws(() => createAllowedOrigins('https://scc10.interno/rota'), /origem/i);
+  assert.throws(() => createAllowedOrigins('https://scc10.interno@outro.interno'), /origem/i);
+});
+
+test('build estático publica somente recursos permitidos', () => {
+  const root = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'scc10-static-test-'));
+  const files = [
+    'index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'materia.html',
+    'src/css/app.css', 'src/js/api-base.js', 'src/js/app.js', 'src/js/config-app.js',
+    'src/js/materia.js', 'src/js/ranking-test.js', 'src/js/state.js',
+    'src/js/services/analytics-api.js', 'src/js/services/auth.js', 'src/js/services/storage.js',
+    'src/js/utils/formatters.js', 'assets/images/scc10-logo.png', 'assets/images/scc10-mark.jpg',
+    'node_modules/chart.js/dist/chart.umd.js', 'node_modules/d3/dist/d3.min.js',
+    'node_modules/d3-sankey/dist/d3-sankey.min.js',
+    '.env', 'server/db.js', 'data/scc10.sqlite', '.git/config',
+    'src/js/.secret.js', 'assets/images/unlisted-credential.json'
+  ];
+  try {
+    for (const file of files) {
+      const dest = join(root, file);
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, file);
+    }
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/build-static.mjs', import.meta.url)), root], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(existsSync(join(root, 'dist', 'index.html')));
+    assert.ok(existsSync(join(root, 'dist', 'src/js/app.js')));
+    assert.ok(existsSync(join(root, 'dist', 'node_modules/chart.js/dist/chart.umd.js')));
+    for (const file of ['.env', 'server/db.js', 'data/scc10.sqlite', '.git/config', 'src/js/.secret.js', 'assets/images/unlisted-credential.json']) {
+      assert.equal(existsSync(join(root, 'dist', file)), false, file);
+    }
+    const source = join(root, 'src/js/app.js');
+    rmSync(source);
+    try {
+      symlinkSync(join(root, '.env'), source);
+    } catch (error) {
+      if (['EPERM', 'EACCES'].includes(error.code)) return; // Windows sem permissão de symlink.
+      throw error;
+    }
+    const unsafe = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/build-static.mjs', import.meta.url)), root], { encoding: 'utf8' });
+    assert.notEqual(unsafe.status, 0, 'o build deve rejeitar symlink em arquivo permitido');
+    assert.equal(lstatSync(join(root, 'dist/src/js/app.js')).isSymbolicLink(), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

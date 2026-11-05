@@ -6,6 +6,7 @@
   <title>SCC10 — Configuração</title>
   <link rel="icon" href="assets/images/scc10-mark.jpg">
   <link rel="stylesheet" href="src/css/app.css">
+  <script src="src/js/api-base.js"></script>
 </head>
 <body>
   <div class="container" role="main">
@@ -63,7 +64,7 @@
       <p class="config-note">As credenciais permanecem no servidor. Não coloque o JSON da Service Account nesta página.</p>
     </div>
   </div>
-  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || `http://${location.hostname || '127.0.0.1'}:3001`;</script>
+
   <script type="module" src="src/js/config-app.js"></script>
 </body>
 </html>

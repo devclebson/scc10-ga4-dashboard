@@ -4,6 +4,7 @@ import { isServiceAccountConfigured } from './services/google-auth.js';
 import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
 import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
+import { createAllowedOrigins } from './services/allowed-origins.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -11,7 +12,7 @@ const ARTICLE_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const DEFAULT_COLLECTOR_INTERVAL_SECONDS = 30;
 const CHANNELS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 const QUOTA_BACKOFF_MS = 15 * 60 * 1000;
-const ALLOWED_ORIGINS = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
+const ALLOWED_ORIGINS = createAllowedOrigins(process.env.SCC10_PUBLIC_ORIGIN);
 const PUBLIC_GA4_REQUESTS_PER_MINUTE = 60;
 let publicGa4WindowStart = Date.now();
 let publicGa4RequestCount = 0;
