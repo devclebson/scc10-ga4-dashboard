@@ -10,6 +10,10 @@
     let localHistoryRange = '6h';
     let localHistoryCustomFrom = '';
     let localHistoryCustomTo = '';
+    let channelsTodayLastFetchedAt = 0;
+    let channelsTodayPropertyId = null;
+    let realtimeCycleId = 0;
+    const CHANNELS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
     // ============ ELEMENTOS DOM ============
     const $ = id => document.getElementById(id);
@@ -109,7 +113,7 @@
       showScreen(setupScreen);
     }
 
-    const { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig, enrichArticles } = createAnalyticsApi({
+    const { runReport, runRealtimeReport, getSnapshots, getBackendConfig, enrichArticles } = createAnalyticsApi({
       getAccessToken: () => state.accessToken,
       getDateRange: () => state.dateRange,
       isTokenExpired,
@@ -607,28 +611,84 @@
     async function fetchRealtimeCycle() {
       if (state.isDemo || !state.selectedProperty) return;
       const propId = state.selectedProperty.id.replace('properties/', '');
+      const cycleId = ++realtimeCycleId;
+      const isCurrentCycle = () => cycleId === realtimeCycleId
+        && !state.isDemo && state.selectedProperty?.id.replace('properties/', '') === propId;
 
       try {
+        if (channelsTodayPropertyId !== propId) {
+          channelsTodayPropertyId = propId;
+          channelsTodayLastFetchedAt = 0;
+          state.editorial.channelsToday = [];
+        }
+        let totalRt;
+        let pagesRt;
+        let minuteRt;
+        let usingSnapshot = false;
+        let snapshotCapturedAt = null;
+        try {
+          const [snapshot] = await getSnapshots({ propertyId: propId, limit: 1 });
+          if (!isCurrentCycle()) return;
+          const ageMs = Date.now() - Date.parse(snapshot?.captured_at);
+          if (snapshot && ageMs >= 0 && ageMs <= 90000) {
+            const payload = JSON.parse(snapshot.payload_json);
+            if (Array.isArray(payload.topPages) && Array.isArray(payload.minuteSeries)) {
+              totalRt = { rows: [
+                { dimensionValues: [{ value: 'last30m' }], metricValues: [{ value: snapshot.active_users_30m }, { value: snapshot.page_views_30m }] },
+                { dimensionValues: [{ value: 'last5m' }], metricValues: [{ value: snapshot.active_users_5m }] }
+              ] };
+              pagesRt = { rows: payload.topPages.map(page => ({
+                dimensionValues: [{ value: page.title }],
+                metricValues: [{ value: page.users }, { value: page.views }]
+              })) };
+              minuteRt = { rows: payload.minuteSeries.map(minute => ({
+                dimensionValues: [{ value: minute.minute }],
+                metricValues: [{ value: minute.users }, { value: minute.views }]
+              })) };
+              if (Array.isArray(payload.channelsToday)) state.editorial.channelsToday = payload.channelsToday;
+              usingSnapshot = true;
+              snapshotCapturedAt = snapshot.captured_at;
+            }
+          }
+        } catch (error) {
+          console.warn('Snapshot local indisponível; consultando o GA4 diretamente:', error.message);
+        }
+        if (!usingSnapshot) {
+          totalRt = await runRealtimeReport(propId, {
+            metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+            minuteRanges: [
+              { name: 'last30m', startMinutesAgo: 29, endMinutesAgo: 0 },
+              { name: 'last5m', startMinutesAgo: 4, endMinutesAgo: 0 }
+            ]
+          });
+          pagesRt = await runRealtimeReport(propId, {
+            dimensions: [{ name: 'unifiedScreenName' }],
+            metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+            orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+            limit: 60
+          });
+          minuteRt = await runRealtimeReport(propId, {
+            dimensions: [{ name: 'minutesAgo' }],
+            metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+            orderBys: [{ dimension: { dimensionName: 'minutesAgo' }, desc: true }]
+          });
+        }
+        if (!isCurrentCycle()) return;
         // 1. Totalizadores gerais de tempo real (30 min)
-        const totalRt = await runRealtimeReport(propId, {
-          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }]
-        });
 
-        if (totalRt?.rows?.[0]) {
-          state.editorial.activeUsers30m = parseInt(totalRt.rows[0].metricValues[0].value) || 0;
-          state.editorial.pageViews30m = parseInt(totalRt.rows[0].metricValues[1].value) || 0;
+        const totalRow = totalRt?.rows?.find(row => row.dimensionValues?.[0]?.value === 'last30m');
+        const fiveMinuteRow = totalRt?.rows?.find(row => row.dimensionValues?.[0]?.value === 'last5m');
+        if (totalRow) {
+          state.editorial.activeUsers30m = parseInt(totalRow.metricValues[0].value) || 0;
+          state.editorial.pageViews30m = parseInt(totalRow.metricValues[1].value) || 0;
+          state.editorial.activeUsers5m = parseInt(fiveMinuteRow?.metricValues?.[0]?.value) || 0;
           state.realtime = state.editorial.activeUsers30m;
           realtimeCount.textContent = `${state.realtime} leitores agora`;
         }
 
         // 2. Ranking de matérias por título.
         // A Realtime API não suporta unifiedPagePathScreen; URL será enriquecida pelo backend futuramente.
-        const pagesRt = await runRealtimeReport(propId, {
-          dimensions: [{ name: 'unifiedScreenName' }],
-          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
-          orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
-          limit: 60
-        });
+
 
         if (pagesRt?.rows) {
           const newMap = new Map();
@@ -660,6 +720,7 @@
 
           try {
             const enriched = await enrichArticles(propId, cleanArticles.map(article => article.title));
+            if (!isCurrentCycle()) return;
             cleanArticles.forEach(article => {
               const metadata = enriched[article.title];
               if (metadata) Object.assign(article, metadata, { url: metadata.pagePath || '' });
@@ -667,6 +728,7 @@
           } catch (error) {
             console.warn('Metadados históricos não disponíveis:', error.message);
           }
+          if (!isCurrentCycle()) return;
 
           state.editorial.previousRankings = newMap;
           state.editorial.topPages = cleanArticles;
@@ -674,63 +736,46 @@
         }
 
         // 3. Curva minuto a minuto (últimos 30 minutos)
-        const minuteRt = await runRealtimeReport(propId, {
-          dimensions: [{ name: 'minutesAgo' }],
-          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
-          orderBys: [{ dimension: { dimensionName: 'minutesAgo' }, desc: true }]
-        });
+
 
         if (minuteRt?.rows) {
           const series = [];
-          let sum5mUsers = 0;
           
           minuteRt.rows.forEach(r => {
             const m = parseInt(r.dimensionValues[0].value);
             const u = parseInt(r.metricValues[0].value) || 0;
             const v = parseInt(r.metricValues[1].value) || 0;
 
-            if (m <= 4) sum5mUsers += u; // Minutos 00 a 04 = últimos 5 min
             series.push({ minute: `${m}m atrás`, users: u, views: v });
           });
 
           state.editorial.minuteSeries = series;
-          // Se tivermos dados de minutos, usamos a soma ponderada dos 5 min
-          state.editorial.activeUsers5m = sum5mUsers > 0 ? sum5mUsers : Math.round(state.editorial.activeUsers30m * 0.3);
         }
 
         // 4. Tráfego Intraday do dia de hoje (Canais e Origens)
-        try {
-          const todayReport = await runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 10, 'today', 'today');
-          if (todayReport?.rows) {
-            const totalSess = todayReport.rows.reduce((acc, r) => acc + (parseInt(r.metricValues[0].value) || 0), 0) || 1;
-            state.editorial.channelsToday = todayReport.rows.map(r => {
-              const sess = parseInt(r.metricValues[0].value) || 0;
-              return {
-                channel: r.dimensionValues[0].value,
-                sessions: sess,
-                pct: ((sess / totalSess) * 100).toFixed(1)
-              };
-            });
+        if (!usingSnapshot && Date.now() - channelsTodayLastFetchedAt >= CHANNELS_REFRESH_INTERVAL_MS) {
+          try {
+            const todayReport = await runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 10, 'today', 'today');
+            if (!isCurrentCycle()) return;
+            if (todayReport?.rows) {
+              const totalSess = todayReport.rows.reduce((acc, r) => acc + (parseInt(r.metricValues[0].value) || 0), 0) || 1;
+              state.editorial.channelsToday = todayReport.rows.map(r => {
+                const sess = parseInt(r.metricValues[0].value) || 0;
+                return {
+                  channel: r.dimensionValues[0].value,
+                  sessions: sess,
+                  pct: ((sess / totalSess) * 100).toFixed(1)
+                };
+              });
+              channelsTodayLastFetchedAt = Date.now();
+            }
+          } catch (e) {
+            console.warn('Tráfego do dia intraday não disponível:', e.message);
           }
-        } catch (e) {
-          console.warn('Tráfego do dia intraday não disponível:', e.message);
         }
 
-        saveSnapshot({
-          propertyId: propId,
-          capturedAt: new Date().toISOString(),
-          activeUsers5m: state.editorial.activeUsers5m,
-          activeUsers30m: state.editorial.activeUsers30m,
-          pageViews30m: state.editorial.pageViews30m,
-          activeArticlesCount: state.editorial.activeArticlesCount,
-          payload: {
-            topPages: state.editorial.topPages,
-            channelsToday: state.editorial.channelsToday,
-            minuteSeries: state.editorial.minuteSeries
-          }
-        }).catch(error => console.warn('Snapshot local não salvo:', error.message));
-
-        state.editorial.lastUpdated = new Date().toLocaleTimeString('pt-BR');
+        if (!isCurrentCycle()) return;
+        state.editorial.lastUpdated = new Date(snapshotCapturedAt || Date.now()).toLocaleTimeString('pt-BR');
         lastUpdatedText.textContent = `Atualizado às ${state.editorial.lastUpdated}`;
 
         // Se estiver na aba editorial, re-renderiza dinamicamente

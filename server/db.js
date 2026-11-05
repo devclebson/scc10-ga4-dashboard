@@ -47,6 +47,28 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_articles_property_title
     ON articles(property_id, normalized_title);
+
+  CREATE TABLE IF NOT EXISTS admin_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    last_login_at TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_hash TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL REFERENCES admin_users(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_admin_sessions_expiry
+    ON admin_sessions(expires_at);
 `);
 
 const insertSnapshot = db.prepare(`
@@ -100,6 +122,64 @@ export function getSetting(key) {
 
 export function setSetting(key, value) {
   setSettingStatement.run(key, String(value), new Date().toISOString());
+}
+
+const findAdminUserStatement = db.prepare('SELECT * FROM admin_users WHERE username = ? LIMIT 1');
+const countAdminUsersStatement = db.prepare('SELECT COUNT(*) AS count FROM admin_users');
+const insertAdminUserStatement = db.prepare(`
+  INSERT INTO admin_users (username, password_hash, role, created_at)
+  VALUES (?, ?, ?, ?)
+`);
+const updateAdminLastLoginStatement = db.prepare('UPDATE admin_users SET last_login_at = ? WHERE id = ?');
+const insertAdminSessionStatement = db.prepare(`
+  INSERT INTO admin_sessions (session_hash, user_id, created_at, expires_at, last_seen_at)
+  VALUES (?, ?, ?, ?, ?)
+`);
+const findAdminSessionStatement = db.prepare(`
+  SELECT s.session_hash, u.username, u.role
+  FROM admin_sessions s
+  JOIN admin_users u ON u.id = s.user_id
+  WHERE s.session_hash = ? AND s.expires_at > ? AND u.active = 1
+  LIMIT 1
+`);
+const touchAdminSessionStatement = db.prepare('UPDATE admin_sessions SET last_seen_at = ? WHERE session_hash = ?');
+const deleteAdminSessionStatement = db.prepare('DELETE FROM admin_sessions WHERE session_hash = ?');
+const deleteExpiredAdminSessionsStatement = db.prepare('DELETE FROM admin_sessions WHERE expires_at <= ?');
+
+export function hasAdminUser() {
+  return Number(countAdminUsersStatement.get().count) > 0;
+}
+
+export function createAdminUser({ username, passwordHash, role = 'admin' }) {
+  insertAdminUserStatement.run(username, passwordHash, role, new Date().toISOString());
+}
+
+export function findAdminUser(username) {
+  return findAdminUserStatement.get(username) || null;
+}
+
+export function updateAdminLastLogin(userId, timestamp) {
+  updateAdminLastLoginStatement.run(timestamp, userId);
+}
+
+export function createAdminSession({ sessionHash, userId, createdAt, expiresAt }) {
+  insertAdminSessionStatement.run(sessionHash, userId, createdAt, expiresAt, createdAt);
+}
+
+export function findAdminSession(sessionHash, now) {
+  return findAdminSessionStatement.get(sessionHash, now) || null;
+}
+
+export function touchAdminSession(sessionHash, timestamp) {
+  touchAdminSessionStatement.run(timestamp, sessionHash);
+}
+
+export function deleteAdminSession(sessionHash) {
+  deleteAdminSessionStatement.run(sessionHash);
+}
+
+export function deleteExpiredAdminSessions(now = new Date().toISOString()) {
+  deleteExpiredAdminSessionsStatement.run(now);
 }
 
 const upsertArticleStatement = db.prepare(`

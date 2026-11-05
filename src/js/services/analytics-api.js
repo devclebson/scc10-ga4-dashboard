@@ -65,16 +65,6 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     }
   }
 
-  async function saveSnapshot(snapshot) {
-    const res = await fetch(`${BACKEND_API_BASE}/api/snapshots`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(snapshot)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Falha ao salvar snapshot.');
-    return data;
-  }
 
   async function getSnapshots({ propertyId, from, to, limit = 100 } = {}) {
     const params = new URLSearchParams({
@@ -107,5 +97,5 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     return data.articles || {};
   }
 
-  return { runReport, runRealtimeReport, saveSnapshot, getSnapshots, getBackendConfig, enrichArticles };
+  return { runReport, runRealtimeReport, getSnapshots, getBackendConfig, enrichArticles };
 }

@@ -1,20 +1,38 @@
 import { createServer } from 'node:http';
 import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
+import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
 import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
 const ARTICLE_SYNC_INTERVAL_MS = 15 * 60 * 1000;
+const DEFAULT_COLLECTOR_INTERVAL_SECONDS = 30;
+const CHANNELS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const QUOTA_BACKOFF_MS = 15 * 60 * 1000;
+const ALLOWED_ORIGINS = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
+const PUBLIC_GA4_REQUESTS_PER_MINUTE = 60;
+let publicGa4WindowStart = Date.now();
+let publicGa4RequestCount = 0;
 let articleSyncRunning = false;
+let realtimeSnapshotRunning = false;
+let realtimeCollectorTimer = null;
+let realtimeBackoffUntil = 0;
+let channelsCache = [];
+let channelsCacheUpdatedAt = 0;
+let channelsCachePropertyId = null;
+let channelsCacheDay = null;
 
-function sendJson(res, status, payload) {
+function sendJson(res, status, payload, extraHeaders = {}) {
+  const origin = res.req?.headers.origin;
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': 'http://localhost:3000',
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'http://localhost:3000',
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Token',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    ...extraHeaders
   });
   res.end(JSON.stringify(payload));
 }
@@ -32,6 +50,25 @@ function propertyIdFrom(value) {
   return propertyId;
 }
 
+function configuredPropertyIdFrom(value) {
+  const propertyId = propertyIdFrom(value);
+  const configuredPropertyId = propertyIdFrom(applicationConfig().propertyId);
+  if (propertyId !== configuredPropertyId) throw new Error('Propriedade GA4 diferente da configurada.');
+  return propertyId;
+}
+
+function assertPublicGa4Budget() {
+  if (Date.now() - publicGa4WindowStart >= 60000) {
+    publicGa4WindowStart = Date.now();
+    publicGa4RequestCount = 0;
+  }
+  if (++publicGa4RequestCount > PUBLIC_GA4_REQUESTS_PER_MINUTE) {
+    const error = new Error('Limite temporário de consultas GA4 atingido.');
+    error.status = 429;
+    throw error;
+  }
+}
+
 function applicationConfig() {
   const propertyId = getSetting('propertyId') || process.env.SCC10_PROPERTY_ID || null;
   return {
@@ -45,8 +82,9 @@ function applicationConfig() {
 }
 
 function isAdminAuthorized(req) {
+  if (getSessionUser(req)) return true;
   const expected = process.env.SCC10_ADMIN_TOKEN;
-  if (!expected) return req.headers.host?.startsWith('127.0.0.1') || req.headers.host?.startsWith('localhost');
+  if (!expected) return false;
   return req.headers['x-admin-token'] === expected;
 }
 
@@ -78,10 +116,14 @@ async function proxyAnalyticsRequest(req, body) {
   if (!isServiceAccountConfigured()) {
     throw new Error('Authorization Bearer ausente e Service Account não configurada.');
   }
-  return requestGa4Report(body);
+  return requestGa4Report({ ...body, propertyId: configuredPropertyIdFrom(body.propertyId) });
 }
 
 const server = createServer(async (req, res) => {
+  if (req.headers.origin && !ALLOWED_ORIGINS.has(req.headers.origin)) {
+    sendJson(res, 403, { error: 'Origem não autorizada.' });
+    return;
+  }
   if (req.method === 'OPTIONS') {
     sendJson(res, 204, {});
     return;
@@ -95,7 +137,8 @@ const server = createServer(async (req, res) => {
         ok: true,
         service: 'scc10-backend',
         authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
-        adminAuthConfigured: Boolean(process.env.SCC10_ADMIN_TOKEN),
+        adminAuthConfigured: isAdminAuthConfigured(),
+        passwordLoginConfigured: isPasswordLoginConfigured(),
         time: new Date().toISOString()
       });
       return;
@@ -107,9 +150,32 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+      const body = await readJson(req);
+      const result = login(body.username, body.password);
+      if (!result) {
+        sendJson(res, 401, { error: 'Usuário ou senha inválidos.' });
+        return;
+      }
+      sendJson(res, 200, { authenticated: true, user: result.user }, { 'Set-Cookie': sessionCookie(result.token, result.expiresAt) });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+      logout(req);
+      sendJson(res, 200, { authenticated: false }, { 'Set-Cookie': clearSessionCookie() });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/auth/session') {
+      const user = getSessionUser(req);
+      sendJson(res, 200, { authenticated: Boolean(user), user });
+      return;
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/admin/config') {
       if (!isAdminAuthorized(req)) throw new Error('Acesso administrativo não autorizado.');
-      sendJson(res, 200, { ...applicationConfig(), adminAuthConfigured: Boolean(process.env.SCC10_ADMIN_TOKEN) });
+      sendJson(res, 200, { ...applicationConfig(), adminAuthConfigured: isAdminAuthConfigured() });
       return;
     }
 
@@ -125,19 +191,22 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/ga4/report') {
+      assertPublicGa4Budget();
       const result = await proxyAnalyticsRequest(req, await readJson(req));
       sendJson(res, result.status, result.data);
       return;
     }
 
     if (req.method === 'GET' && url.pathname === '/api/ga4/metadata') {
+      assertPublicGa4Budget();
       if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
-      const result = await getGa4Metadata(url.searchParams.get('propertyId'));
+      const result = await getGa4Metadata(configuredPropertyIdFrom(url.searchParams.get('propertyId')));
       sendJson(res, result.status, result.data);
       return;
     }
 
     if (req.method === 'POST' && url.pathname === '/api/articles/sync') {
+      if (!isAdminAuthorized(req)) throw new Error('Acesso administrativo não autorizado.');
       if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
       const body = await readJson(req);
       const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
@@ -156,18 +225,12 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/articles/detail') {
+      assertPublicGa4Budget();
       if (!isServiceAccountConfigured()) throw new Error('Service Account não configurada.');
       const body = await readJson(req);
-      const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
+      const propertyId = configuredPropertyIdFrom(body.propertyId || applicationConfig().propertyId);
       const detail = await getArticleDetail(propertyId, body);
       sendJson(res, 200, detail);
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/snapshots') {
-      const snapshot = await readJson(req);
-      const result = saveSnapshot(snapshot);
-      sendJson(res, 201, result);
       return;
     }
 
@@ -185,7 +248,7 @@ const server = createServer(async (req, res) => {
 
     sendJson(res, 404, { error: 'Rota não encontrada.' });
   } catch (error) {
-    sendJson(res, 400, { error: error.message || 'Erro interno.' });
+    sendJson(res, error.status || 400, { error: error.message || 'Erro interno.' });
   }
 });
 
@@ -204,8 +267,162 @@ async function runScheduledArticleSync() {
   }
 }
 
+function rowsToArticles(report) {
+  return (report?.rows || []).map(row => ({
+    title: row.dimensionValues?.[0]?.value || 'SCC10 Notícia',
+    users: Number(row.metricValues?.[0]?.value || 0),
+    views: Number(row.metricValues?.[1]?.value || 0)
+  }));
+}
+
+function assertGa4Success(result) {
+  if (result.status >= 400) {
+    const error = new Error(result.data?.error?.message || `GA4 retornou HTTP ${result.status}.`);
+    error.status = result.status;
+    throw error;
+  }
+  return result.data;
+}
+
+function pauseCollectorForQuota(error) {
+  if (error.status !== 429 && !/quota|exhausted property tokens/i.test(error.message)) return;
+  realtimeBackoffUntil = Date.now() + QUOTA_BACKOFF_MS;
+  console.warn('Realtime collector paused for 15 minutes after GA4 quota exhaustion.');
+}
+
+function rowsToChannels(report) {
+  const rows = report?.rows || [];
+  const totalSessions = rows.reduce((sum, row) => sum + Number(row.metricValues?.[0]?.value || 0), 0) || 1;
+  return rows.map(row => {
+    const sessions = Number(row.metricValues?.[0]?.value || 0);
+    return {
+      channel: row.dimensionValues?.[0]?.value || '(not set)',
+      sessions,
+      pct: ((sessions / totalSessions) * 100).toFixed(1)
+    };
+  });
+}
+
+async function getChannelsToday(propertyId) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (channelsCachePropertyId !== propertyId || channelsCacheDay !== today) {
+    channelsCachePropertyId = propertyId;
+    channelsCacheDay = today;
+    channelsCache = [];
+    channelsCacheUpdatedAt = 0;
+  }
+  if (Date.now() - channelsCacheUpdatedAt < CHANNELS_REFRESH_INTERVAL_MS) return channelsCache;
+  try {
+    const result = await requestGa4Report({
+      propertyId,
+      reportType: 'standard',
+      payload: {
+        dateRanges: [{ startDate: 'today', endDate: 'today' }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 10
+      }
+    });
+    if (channelsCachePropertyId === propertyId) {
+      channelsCache = rowsToChannels(assertGa4Success(result));
+      channelsCacheUpdatedAt = Date.now();
+    }
+  } catch (error) {
+    if (channelsCachePropertyId === propertyId) channelsCacheUpdatedAt = Date.now();
+    pauseCollectorForQuota(error);
+    console.warn(`Channels refresh failed: ${error.message}`);
+  }
+  return channelsCachePropertyId === propertyId ? channelsCache : [];
+}
+
+async function runScheduledRealtimeSnapshot() {
+  if (realtimeSnapshotRunning || Date.now() < realtimeBackoffUntil || !isServiceAccountConfigured()) return;
+  const propertyId = applicationConfig().propertyId;
+  if (!propertyId) return;
+
+  realtimeSnapshotRunning = true;
+  try {
+    const [totalReport, pagesReport, minuteReport] = await Promise.all([
+      requestGa4Report({
+        propertyId,
+        reportType: 'realtime',
+        payload: {
+          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+          minuteRanges: [
+            { name: 'last30m', startMinutesAgo: 29, endMinutesAgo: 0 },
+            { name: 'last5m', startMinutesAgo: 4, endMinutesAgo: 0 }
+          ]
+        }
+      }),
+      requestGa4Report({
+        propertyId,
+        reportType: 'realtime',
+        payload: {
+          dimensions: [{ name: 'unifiedScreenName' }],
+          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+          orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+          limit: 60
+        }
+      }),
+      requestGa4Report({
+        propertyId,
+        reportType: 'realtime',
+        payload: {
+          dimensions: [{ name: 'minutesAgo' }],
+          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+          orderBys: [{ dimension: { dimensionName: 'minutesAgo' }, desc: true }]
+        }
+      })
+    ]);
+
+    const totalData = assertGa4Success(totalReport);
+    const pagesData = assertGa4Success(pagesReport);
+    const minuteData = assertGa4Success(minuteReport);
+    const channelsToday = await getChannelsToday(propertyId);
+    const totalRow = totalData?.rows?.find(row => row.dimensionValues?.[0]?.value === 'last30m');
+    const fiveMinuteRow = totalData?.rows?.find(row => row.dimensionValues?.[0]?.value === 'last5m');
+    const minuteSeries = (minuteData?.rows || []).map(row => ({
+      minute: `${row.dimensionValues?.[0]?.value || 0}m atrás`,
+      users: Number(row.metricValues?.[0]?.value || 0),
+      views: Number(row.metricValues?.[1]?.value || 0)
+    }));
+    saveSnapshot({
+      propertyId,
+      capturedAt: new Date().toISOString(),
+      activeUsers5m: Number(fiveMinuteRow?.metricValues?.[0]?.value || 0),
+      activeUsers30m: Number(totalRow?.metricValues?.[0]?.value || 0),
+      pageViews30m: Number(totalRow?.metricValues?.[1]?.value || 0),
+      activeArticlesCount: pagesData?.rows?.length || 0,
+      payload: {
+        topPages: rowsToArticles(pagesData),
+        channelsToday,
+        minuteSeries
+      }
+    });
+    console.log('Realtime snapshot saved');
+  } catch (error) {
+    pauseCollectorForQuota(error);
+    console.warn(`Realtime snapshot failed: ${error.message}`);
+  } finally {
+    realtimeSnapshotRunning = false;
+  }
+}
+
+function scheduleRealtimeSnapshot(delayMs = 10000) {
+  if (realtimeCollectorTimer) clearTimeout(realtimeCollectorTimer);
+  realtimeCollectorTimer = setTimeout(async () => {
+    await runScheduledRealtimeSnapshot();
+    const intervalSeconds = Number(getSetting('collectorIntervalSeconds')) || DEFAULT_COLLECTOR_INTERVAL_SECONDS;
+    const configuredDelay = Math.max(15, Math.min(intervalSeconds, 3600)) * 1000;
+    scheduleRealtimeSnapshot(Math.max(configuredDelay, realtimeBackoffUntil - Date.now()));
+  }, delayMs);
+}
+
 server.listen(PORT, HOST, () => {
+  ensureBootstrapAdmin();
   console.log(`SCC10 backend listening at http://${HOST}:${PORT}`);
   setTimeout(runScheduledArticleSync, 10000);
   setInterval(runScheduledArticleSync, ARTICLE_SYNC_INTERVAL_MS);
+  scheduleRealtimeSnapshot();
 });

@@ -5,13 +5,33 @@
 PowerShell:
 
 ```powershell
-$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-dashboard-portal.json"
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
 $env:SCC10_PROPERTY_ID="309943616"
-$env:SCC10_ADMIN_TOKEN="defina-um-token-forte"
+$env:SCC10_ADMIN_USERNAME="admin"
+$env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"
 npm run backend
 ```
 
 A Service Account deve ter permissão de leitura na propriedade GA4.
+
+Verifique também:
+
+```powershell
+curl http://127.0.0.1:3001/api/health
+curl http://127.0.0.1:3001/api/config
+```
+
+O resultado esperado é `authMode: service-account` e `configured: true`.
+
+Para testar o login administrativo, configure temporariamente no processo do backend:
+
+```powershell
+$env:SCC10_ADMIN_USERNAME="admin"
+$env:SCC10_ADMIN_PASSWORD="defina-uma-senha-local"
+```
+
+O backend cria o primeiro usuário somente se ainda não existir. A senha é armazenada
+como hash no SQLite. O navegador recebe apenas um cookie de sessão `HttpOnly`.
 
 ## 2. Iniciar o frontend
 
@@ -47,7 +67,7 @@ Verifique:
 - autenticação Service Account;
 - propriedade GA4;
 - carregamento dos valores salvos;
-- alteração e salvamento com o token administrativo.
+- login com usuário e senha, alteração e leitura dos valores persistidos, logout e bloqueio sem sessão.
 
 ## 5. Testar o ranking enriquecido
 
@@ -69,16 +89,28 @@ Esse teste não altera o ranking realtime existente.
 
 ## 6. Sincronizar o cache de matérias
 
-O backend pode sincronizar os metadados históricos manualmente:
+O backend pode sincronizar os metadados históricos manualmente após login administrativo:
 
 ```powershell
-curl -X POST http://127.0.0.1:3001/api/articles/sync `
-  -H "Content-Type: application/json" `
+$cookieFile = Join-Path $env:TEMP 'scc10-admin-cookie.txt'
+curl.exe -c $cookieFile -X POST http://127.0.0.1:3001/api/auth/login `
+  -H 'Content-Type: application/json' `
+  -d '{"username":"admin","password":"SENHA_ADMIN_LOCAL"}'
+curl.exe -b $cookieFile -X POST http://127.0.0.1:3001/api/articles/sync `
+  -H 'Content-Type: application/json' `
   -d '{"propertyId":"309943616","startDate":"30daysAgo"}'
+Remove-Item $cookieFile
 ```
 
 Resultado esperado: quantidade de linhas buscadas e salvas na tabela `articles`.
 O backend também executa essa sincronização automaticamente a cada 15 minutos.
+
+Com a Service Account configurada e a propriedade definida, o backend também coleta
+um snapshot realtime automaticamente a cada 30 segundos, mesmo sem o dashboard aberto.
+O processo não salva snapshot quando qualquer uma das consultas realtime retorna erro; após erro de quota, pausa por 15 minutos.
+Os canais intraday são atualizados em cache e não devem gerar uma consulta GA4 a cada ciclo realtime.
+Com snapshot recente, o frontend utiliza o SQLite em vez de repetir as três consultas realtime; sem snapshot recente, consulta o GA4 diretamente.
+O contador de 5 minutos deve vir da faixa realtime `last5m`, sem somar os mesmos usuários de minutos distintos.
 
 Para validar o cruzamento do realtime com o cache:
 

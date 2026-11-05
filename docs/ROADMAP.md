@@ -23,6 +23,9 @@
 - Configurações administrativas persistidas em `app_settings`.
 - Estado visual de carregamento e erro adicionado ao dashboard.
 - Tela isolada `ranking-teste.html` criada para testar metadados e dimensões de matérias.
+- Service Account validada com relatório GA4 real sem token no navegador.
+- Coletor realtime independente validado com snapshots gravados no SQLite.
+- Dashboard validado visualmente com métricas e ranking reais.
 
 ## Estado atual
 
@@ -38,28 +41,35 @@ configuracao.html  ← se houver erro de configuração
 
 O ranking realtime existente não foi alterado. O teste enriquecido é executado separadamente para evitar regressões.
 
-## Próxima etapa imediata
+## Estado da evolução editorial
 
-- Executar `ranking-teste.html` com a Service Account.
+- `ranking-teste.html` criado para validar dimensões e metadados sem regressão.
+- Cache de matérias integrado ao ranking realtime.
+- Ranking com filtro de páginas não editoriais e seleção Top-N em dropdown.
+- `materia.html` criada com origens de tráfego e detalhes históricos.
 - Dimensões técnicas identificadas:
   - `customEvent:categories` → Categorias;
   - `customEvent:author` → Autor;
   - `customEvent:published_date` → Data Publicação;
   - `customEvent:published_hour` → Hora Publicação.
-- Relatório histórico validado com `pageTitle`, as três dimensões personalizadas e `screenPageViews`.
-- Próximo desenho: definir a junção desses metadados com o ranking realtime sem alterar a tela atual.
+
+## Próxima etapa imediata
+
+- Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
+- Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
+- Remover código morto do fluxo OAuth legado depois da homologação.
 
 ## Backend e coleta
 
-- Criar coletor independente do navegador.
-- Agendar coleta realtime a cada 30 segundos.
+- Coletor independente do navegador implementado no backend.
+- Coleta realtime agendada a cada 30 segundos quando a Service Account e a propriedade estão configuradas.
 - Salvar snapshots mesmo sem o dashboard aberto.
 - Registrar duração, erro e última execução.
 - Implementar limpeza e retenção do SQLite.
 
 ## Segurança e operação
 
-- Configurar `SCC10_ADMIN_TOKEN` em produção.
+- Validar login administrativo em produção com `NODE_ENV=production` e remover o fallback `SCC10_ADMIN_TOKEN` após a migração.
 - Remover gradualmente o OAuth legado do frontend.
 - Restringir CORS e endpoints administrativos.
 - Criar backup automático do SQLite.
