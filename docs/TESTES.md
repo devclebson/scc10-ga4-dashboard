@@ -5,7 +5,7 @@
 PowerShell:
 
 ```powershell
-$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
 $env:SCC10_PROPERTY_ID="309943616"
 $env:SCC10_ADMIN_USERNAME="admin"
 $env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"

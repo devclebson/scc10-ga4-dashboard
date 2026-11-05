@@ -133,7 +133,8 @@ const insertAdminUserStatement = db.prepare(`
 const updateAdminLastLoginStatement = db.prepare('UPDATE admin_users SET last_login_at = ? WHERE id = ?');
 const insertAdminSessionStatement = db.prepare(`
   INSERT INTO admin_sessions (session_hash, user_id, created_at, expires_at, last_seen_at)
-  VALUES (?, ?, ?, ?, ?)
+  SELECT ?, id, ?, ?, ? FROM admin_users
+  WHERE id = ? AND password_hash = ? AND active = 1
 `);
 const findAdminSessionStatement = db.prepare(`
   SELECT s.session_hash, u.username, u.role
@@ -145,6 +146,8 @@ const findAdminSessionStatement = db.prepare(`
 const touchAdminSessionStatement = db.prepare('UPDATE admin_sessions SET last_seen_at = ? WHERE session_hash = ?');
 const deleteAdminSessionStatement = db.prepare('DELETE FROM admin_sessions WHERE session_hash = ?');
 const deleteExpiredAdminSessionsStatement = db.prepare('DELETE FROM admin_sessions WHERE expires_at <= ?');
+const updateAdminPasswordStatement = db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ? AND active = 1');
+const deleteUserSessionsStatement = db.prepare('DELETE FROM admin_sessions WHERE user_id = ?');
 
 export function hasAdminUser() {
   return Number(countAdminUsersStatement.get().count) > 0;
@@ -162,8 +165,9 @@ export function updateAdminLastLogin(userId, timestamp) {
   updateAdminLastLoginStatement.run(timestamp, userId);
 }
 
-export function createAdminSession({ sessionHash, userId, createdAt, expiresAt }) {
-  insertAdminSessionStatement.run(sessionHash, userId, createdAt, expiresAt, createdAt);
+export function createAdminSession({ sessionHash, userId, passwordHash, createdAt, expiresAt }) {
+  const result = insertAdminSessionStatement.run(sessionHash, createdAt, expiresAt, createdAt, userId, passwordHash);
+  return result.changes === 1;
 }
 
 export function findAdminSession(sessionHash, now) {
@@ -180,6 +184,19 @@ export function deleteAdminSession(sessionHash) {
 
 export function deleteExpiredAdminSessions(now = new Date().toISOString()) {
   deleteExpiredAdminSessionsStatement.run(now);
+}
+
+export function updateAdminPasswordAndRevokeSessions(userId, passwordHash) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = updateAdminPasswordStatement.run(passwordHash, userId);
+    if (!result.changes) throw new Error('Usuário administrativo não encontrado ou inativo.');
+    deleteUserSessionsStatement.run(userId);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 const upsertArticleStatement = db.prepare(`

@@ -61,7 +61,7 @@ npm install
 
 # 3. Configure o backend com uma Service Account fora do repositório
 # PowerShell:
-$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
 $env:SCC10_PROPERTY_ID="309943616"
 $env:SCC10_ADMIN_USERNAME="admin"
 $env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"
@@ -89,6 +89,8 @@ npm run start
 
 O OAuth do navegador permanece no código apenas como fallback legado durante a migração. O fluxo principal do projeto usa a Service Account no backend. `SCC10_ADMIN_TOKEN` permanece somente como fallback temporário na API. Instalações que usam apenas esse token devem configurar `SCC10_ADMIN_USERNAME` e `SCC10_ADMIN_PASSWORD` no backend e reiniciar o serviço para criar o primeiro usuário antes de administrar pela nova tela; o token sozinho não habilita o login visual.
 
+Para trocar a senha depois da criação do usuário, execute `npm run admin:rotate-password -- admin` em um terminal interativo na raiz do projeto. A senha é solicitada sem aparecer na tela ou no histórico do shell; o comando revoga as sessões antigas. Alterar `SCC10_ADMIN_PASSWORD` sozinho não muda a senha de um usuário já criado. Remova essa variável do ambiente após a criação inicial. A troca da senha não desativa o fallback `SCC10_ADMIN_TOKEN`; remova essa variável do ambiente e reinicie o backend para revogar também o token legado.
+
 ## 🧭 Estrutura atual
 
 ```text
@@ -105,6 +107,7 @@ docs/                   visão do produto, arquitetura, decisões, roadmap e tes
 ```
 
 O plano de organização, limpeza e próximos upgrades está em `docs/PLANO-EVOLUCAO.md`.
+O fluxo de branches e Pull Requests está em `docs/FLUXO-GIT.md`.
 
 ## ✅ Estado verificado
 
