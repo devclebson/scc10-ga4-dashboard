@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ranking das Notícias Mais Lidas Agora | SCC10</title>
+  <title>Ranking Agora — páginas coletadas | SCC10</title>
   <link rel="stylesheet" href="src/css/app.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
     <header class="ranking-test-header">
       <a href="dashboard.html" aria-label="Voltar ao Monitor Editorial"><img src="assets/images/scc10-logo.png" class="dashboard-logo" alt="SCC10"></a>
       <div>
-        <h1>Ranking das Notícias Mais Lidas Agora</h1>
-        <p>Notícias com leitores ativos nos últimos 30 minutos</p>
+        <h1>Ranking Agora — páginas coletadas</h1>
+        <p>Visualizações nos últimos 30 minutos, entre notícias do recorte de até 60 páginas selecionadas por leitores. Não inclui todas as páginas do portal.</p>
       </div>
       <a class="btn btn-secondary" href="dashboard.html">← Monitor Editorial</a>
     </header>
@@ -38,7 +38,7 @@
               <th>Título da Notícia / URL</th>
               <th style="text-align:right; width:130px;">Leitores (30m)</th>
               <th style="text-align:right; width:120px;">Visualizações</th>
-              <th style="text-align:right; width:140px;">% do Total</th>
+              <th style="text-align:right; width:140px;">% do portal (30m)</th>
               <th style="text-align:center; width:110px;">Tendência</th>
             </tr>
           </thead>
@@ -47,7 +47,7 @@
       </div>
     </section>
   </main>
-  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || 'http://127.0.0.1:3001';</script>
+  <script src="src/js/api-base.js"></script>
   <script type="module" src="src/js/ranking-app.js"></script>
 </body>
 </html>

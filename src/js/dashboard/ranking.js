@@ -2,8 +2,8 @@ import { escapeHtml } from '../utils/formatters.js';
 
 const NON_ARTICLE_TITLES = new Set(['(not set)', 'página inicial', 'página não encontrada']);
 
-export function canOpenRanking(selectedPropertyId, backendPropertyId, isDemo) {
-  return !isDemo && Boolean(backendPropertyId)
+export function canOpenRanking(selectedPropertyId, backendPropertyId, isDemo, usingBackend) {
+  return !isDemo && Boolean(usingBackend) && Boolean(backendPropertyId)
     && String(selectedPropertyId || '').replace(/^properties\//, '') === String(backendPropertyId).replace(/^properties\//, '');
 }
 
@@ -36,7 +36,9 @@ export function buildRankingArticles(pages, previousRankings = new Map()) {
 export function readRankingSnapshot(snapshot, previousRankings = new Map()) {
   const payload = JSON.parse(snapshot?.payload_json || '{}');
   if (!Array.isArray(payload.topPages)) throw new Error('Snapshot de ranking indisponível.');
-  return { ...buildRankingArticles(payload.topPages, previousRankings), capturedAt: snapshot.captured_at };
+  const result = buildRankingArticles(payload.topPages, previousRankings);
+  result.articles.sort((a, b) => b.views - a.views);
+  return { ...result, capturedAt: snapshot.captured_at, totalViews: Number(snapshot.page_views_30m) || 0 };
 }
 
 export function buildRankingRowsHtml(articles, totalViews, propertyId) {

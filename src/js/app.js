@@ -15,6 +15,7 @@
     let channelsTodayPropertyId = null;
     let realtimeCycleId = 0;
     let backendRankingPropertyId = null;
+    let usingBackendRanking = false;
     const CHANNELS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
     // ============ ELEMENTOS DOM ============
@@ -94,6 +95,7 @@
             callback: (r) => {
               if (r.access_token) {
                 state.accessToken = r.access_token;
+                usingBackendRanking = false;
                 tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
 
 
@@ -169,6 +171,7 @@
               return;
             }
             state.accessToken = r.access_token;
+            usingBackendRanking = false;
             state.isDemo = false;
             tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
             storage.setClientId(clientId);
@@ -936,7 +939,7 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
               Ranking das Notícias Mais Lidas Agora
             </div>
-            ${canOpenRanking(state.selectedProperty?.id, backendRankingPropertyId, state.isDemo)
+            ${canOpenRanking(state.selectedProperty?.id, backendRankingPropertyId, state.isDemo, usingBackendRanking)
               ? '<a class="btn btn-secondary" href="ranking.html">Ver ranking completo →</a>'
               : `<span style="font-size:12px; color:var(--text-muted);">${state.isDemo ? 'Prévia demonstrativa' : 'Ranking completo disponível com coleta do servidor'}</span>`}
           </div>
@@ -949,7 +952,7 @@
                   <th>Título da Notícia / URL</th>
                   <th style="text-align:right; width:130px;">Leitores (30m)</th>
                   <th style="text-align:right; width:120px;">Visualizações</th>
-                  <th style="text-align:right; width:140px;">% do Total</th>
+                  <th style="text-align:right; width:140px;">% das notícias selecionadas</th>
                   <th style="text-align:center; width:110px;">Tendência</th>
                 </tr>
               </thead>
@@ -1605,6 +1608,7 @@
         if (!config.configured || !config.propertyId) return false;
 
         backendRankingPropertyId = String(config.propertyId).replace(/^properties\//, '');
+        usingBackendRanking = true;
         state.accessToken = null;
         state.isDemo = false;
         state.selectedProperty = {
@@ -1618,6 +1622,7 @@
         return true;
       } catch (error) {
         backendRankingPropertyId = null;
+        usingBackendRanking = false;
         console.info('Backend sem configuração automática:', error.message);
         return false;
       }
@@ -1656,6 +1661,7 @@
         onToken: response => {
           if (!response?.access_token) return;
           state.accessToken = response.access_token;
+          usingBackendRanking = false;
           tokenExpiresAt = Date.now() + ((response.expires_in || 3600) * 1000);
 
           const savedPropStr = storage.getSelectedProperty();

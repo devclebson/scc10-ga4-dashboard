@@ -91,6 +91,15 @@ function isAdminAuthorized(req) {
   return req.headers['x-admin-token'] === expected;
 }
 
+function adminTransportAllowed(req) {
+  if (process.env.NODE_ENV !== 'production') return true;
+  if (req.socket.encrypted) return true;
+  const remoteAddress = req.socket.remoteAddress;
+  const fromLocalProxy = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddress);
+  return fromLocalProxy && process.env.SCC10_PUBLIC_ORIGIN?.startsWith('https://')
+    && req.headers['x-forwarded-proto'] === 'https';
+}
+
 function validateConfig(body) {
   const propertyId = propertyIdFrom(body.propertyId);
   const allowedRanges = new Set(['7', 'today', '30', '90', '365']);
@@ -141,6 +150,14 @@ const server = createServer(async (req, res) => {
 
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+
+    if (!adminTransportAllowed(req) && (
+      url.pathname.startsWith('/api/admin/')
+      || ['/api/auth/login', '/api/auth/session', '/api/articles/sync'].includes(url.pathname)
+    )) {
+      sendJson(res, 403, { error: 'Administração exige HTTPS confiável.' });
+      return;
+    }
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
       sendJson(res, 200, {

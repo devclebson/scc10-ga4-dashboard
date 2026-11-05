@@ -16,10 +16,10 @@ let articles = [];
 let previousRankings = new Map();
 let capturedAt = '';
 let loading = false;
+let totalViews = 0;
 
 function render() {
   const limit = Number(limitSelect.value);
-  const totalViews = articles.reduce((sum, article) => sum + article.views, 0) || 1;
   tbody.innerHTML = buildRankingRowsHtml(articles.slice(0, limit), totalViews, propertyId);
 }
 
@@ -47,6 +47,7 @@ async function refresh() {
         console.warn('Metadados históricos não disponíveis:', error.message);
       }
       articles = next.articles;
+      totalViews = next.totalViews;
       previousRankings = next.rankings;
       capturedAt = next.capturedAt;
       render();

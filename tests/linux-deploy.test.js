@@ -34,9 +34,9 @@ test('origem pública exata é aceita; valores inválidos ou outras origens são
 test('build estático publica somente recursos permitidos', () => {
   const root = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'scc10-static-test-'));
   const files = [
-    'index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'materia.html',
+    'index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'ranking.html', 'materia.html',
     'src/css/app.css', 'src/js/api-base.js', 'src/js/app.js', 'src/js/config-app.js',
-    'src/js/materia.js', 'src/js/ranking-test.js', 'src/js/state.js',
+    'src/js/materia.js', 'src/js/ranking-test.js', 'src/js/ranking-app.js', 'src/js/dashboard/ranking.js', 'src/js/state.js',
     'src/js/services/analytics-api.js', 'src/js/services/auth.js', 'src/js/services/storage.js',
     'src/js/utils/formatters.js', 'assets/images/scc10-logo.png', 'assets/images/scc10-mark.jpg',
     'node_modules/chart.js/dist/chart.umd.js', 'node_modules/d3/dist/d3.min.js',
@@ -48,12 +48,32 @@ test('build estático publica somente recursos permitidos', () => {
     for (const file of files) {
       const dest = join(root, file);
       mkdirSync(dirname(dest), { recursive: true });
-      writeFileSync(dest, file);
+      const content = file.startsWith('src/js/') && file !== 'src/js/.secret.js'
+        ? readFileSync(new URL(`../${file}`, import.meta.url)) : file;
+      writeFileSync(dest, content);
     }
     const result = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/build-static.mjs', import.meta.url)), root], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.ok(existsSync(join(root, 'dist', 'index.html')));
     assert.ok(existsSync(join(root, 'dist', 'src/js/app.js')));
+    assert.ok(existsSync(join(root, 'dist', 'ranking.html')));
+    assert.ok(existsSync(join(root, 'dist', 'src/js/ranking-app.js')));
+    assert.ok(existsSync(join(root, 'dist', 'src/js/dashboard/ranking.js')));
+    assert.match(readFileSync(join(root, 'dist', 'src/js/ranking-app.js'), 'utf8'), /from '\.\/dashboard\/ranking\.js'/);
+    const pending = [join(root, 'dist', 'src/js/ranking-app.js')];
+    const visited = new Set();
+    while (pending.length) {
+      const moduleFile = pending.pop();
+      if (visited.has(moduleFile)) continue;
+      visited.add(moduleFile);
+      const source = readFileSync(moduleFile, 'utf8');
+      for (const [, relative] of source.matchAll(/\bfrom\s+['"](\.{1,2}\/[^'"]+)['"]/g)) {
+        const imported = join(dirname(moduleFile), relative);
+        assert.ok(existsSync(imported), `Import não publicado: ${relative}`);
+        pending.push(imported);
+      }
+    }
+    assert.ok(visited.size >= 3, 'a árvore de módulos reais do ranking deve ser verificada');
     assert.ok(existsSync(join(root, 'dist', 'node_modules/chart.js/dist/chart.umd.js')));
     for (const file of ['.env', 'server/db.js', 'data/scc10.sqlite', '.git/config', 'src/js/.secret.js', 'assets/images/unlisted-credential.json']) {
       assert.equal(existsSync(join(root, 'dist', file)), false, file);
@@ -72,4 +92,11 @@ test('build estático publica somente recursos permitidos', () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('ranking publicado resolve a API na mesma origem do container', () => {
+  const html = readFileSync(new URL('../ranking.html', import.meta.url), 'utf8');
+  assert.match(html, /<script src="src\/js\/api-base\.js"><\/script>/);
+  assert.doesNotMatch(html, /SCC10_API_BASE\s*=.*127\.0\.0\.1/);
+  assert.match(html, /recorte de até 60 páginas/);
 });

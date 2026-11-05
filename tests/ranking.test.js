@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { buildRankingArticles, buildRankingRowsHtml, canOpenRanking, readRankingSnapshot, shouldRefreshRanking } from '../src/js/dashboard/ranking.js';
 
 test('ranking preserva somente matérias e calcula tendência entre coletas', () => {
@@ -38,6 +39,33 @@ test('ranking lê os dados do snapshot local sem consultar GA4', () => {
   assert.throws(() => readRankingSnapshot({ payload_json: '{}' }), /ranking/i);
 });
 
+test('Agora ordena por visualizações do recorte e usa total do portal como denominador', () => {
+  const snapshot = {
+    captured_at: '2026-11-05T14:00:00.000Z',
+    page_views_30m: 100,
+    payload_json: JSON.stringify({ topPages: [
+      { title: 'Notícia A', users: 30, views: 10 },
+      { title: 'Notícia B', users: 5, views: 20 }
+    ] })
+  };
+  const result = readRankingSnapshot(snapshot);
+  assert.deepEqual(result.articles.map(article => article.title), ['Notícia B', 'Notícia A']);
+  assert.equal(result.totalViews, 100);
+  const originalDocument = globalThis.document;
+  globalThis.document = {
+    createTextNode: text => ({ text }),
+    createElement: () => ({ appendChild(node) { this.innerHTML = node.text; } })
+  };
+  try {
+    const html = buildRankingRowsHtml(result.articles, result.totalViews, '309943616');
+    assert.match(html, /20\.0%/);
+    assert.match(html, /10\.0%/);
+    assert.doesNotMatch(html, /66\.7%/);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
 test('ranking cria link de análise e protege o título no HTML', () => {
   const originalDocument = globalThis.document;
   globalThis.document = {
@@ -64,7 +92,8 @@ test('ranking cria link de análise e protege o título no HTML', () => {
 });
 
 test('ranking completo só abre para a propriedade coletada pelo backend', () => {
-  assert.equal(canOpenRanking('properties/309943616', '309943616', false), true);
+  assert.equal(canOpenRanking('properties/309943616', '309943616', false, true), true);
+  assert.equal(canOpenRanking('properties/309943616', '309943616', false, false), false);
   assert.equal(canOpenRanking('properties/123', '309943616', false), false);
   assert.equal(canOpenRanking('properties/309943616', null, false), false);
   assert.equal(canOpenRanking('properties/309943616', '309943616', true), false);
@@ -75,4 +104,10 @@ test('ranking busca a primeira coleta mesmo quando a aba inicia oculta', () => {
   assert.equal(shouldRefreshRanking({ loading: false, hidden: true, capturedAt: '2026-11-05T14:00:00Z', propertyId: '309943616' }), false);
   assert.equal(shouldRefreshRanking({ loading: true, hidden: false, capturedAt: '', propertyId: '309943616' }), false);
   assert.equal(shouldRefreshRanking({ loading: false, hidden: false, capturedAt: '', propertyId: '' }), false);
+});
+
+test('prévia explicita que o percentual usa apenas as notícias selecionadas', () => {
+  const source = readFileSync(new URL('../src/js/app.js', import.meta.url), 'utf8');
+  assert.match(source, /% das notícias selecionadas/);
+  assert.doesNotMatch(source, /% das coletadas/);
 });
