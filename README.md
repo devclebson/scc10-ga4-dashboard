@@ -18,7 +18,7 @@
 ### 🚀 Monitor Editorial em Tempo Real (Ao Vivo)
 - **Leitores Ativos Instantâneos:** Contagem de leitores nos últimos 5 e 30 minutos via API oficial do Google Analytics 4.
 - **Visualizações (30 min):** Volume consolidado de visualizações de página na janela recente.
-- **Ranking de Notícias em Tempo Real:** Tabela dinâmica com as matérias mais lidas agora (Top 10, Top 20 ou Top 50), combinando URL e título sem duplicações.
+- **Ranking de Notícias em Tempo Real:** Prévia Top 5 no Monitor Editorial e página própria `ranking.html` com Top 10, Top 20 ou Top 50, URL e análise da matéria.
 - **Indicador de Tendência:** Detecção de aceleração de audiência (`🔥 Em Alta`, `↑ Subindo`, `Estável`, `↓ Caindo`).
 - **Curva Minuto a Minuto:** Gráfico de evolução da audiência nos últimos 30 minutos (`minutesAgo`).
 - **Canais do Dia (Intraday):** Distribuição do tráfego de hoje (Google Busca, Google Discover, Direto, Redes Sociais, WhatsApp).
@@ -96,6 +96,7 @@ Para trocar a senha depois da criação do usuário, execute `npm run admin:rota
 ```text
 index.html              inicialização e preflight GA4
 dashboard.html          dashboard principal
+ranking.html            ranking operacional a partir dos snapshots do servidor
 configuracao.html       configuração operacional
 ranking-teste.html      experimento isolado de metadados
 materia.html            detalhe e origens de uma matéria
@@ -108,6 +109,7 @@ docs/                   visão do produto, arquitetura, decisões, roadmap e tes
 
 O plano de organização, limpeza e próximos upgrades está em `docs/PLANO-EVOLUCAO.md`.
 O fluxo de branches e Pull Requests está em `docs/FLUXO-GIT.md`.
+O ranking operacional atualiza a leitura do SQLite a cada 30 segundos, sem fazer uma nova consulta ao GA4; em caso de coleta antiga, a página indica que os dados estão desatualizados. Visão Geral e Aquisição de Tráfego permanecem no dashboard até a próxima etapa de separação.
 
 ## ✅ Estado verificado
 
