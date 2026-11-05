@@ -6,7 +6,9 @@
   "scripts": {
     "start": "npx serve . -l 3000",
     "backend": "node server/server.js",
-    "test:syntax": "node --check src/js/app.js && node --check server/server.js && node --check server/db.js"
+    "admin:rotate-password": "node server/rotate-admin-password.js",
+    "test:syntax": "node --check src/js/app.js && node --check server/server.js && node --check server/db.js && node --check server/services/admin-auth.js && node --check server/rotate-admin-password.js && node --check tests/admin-password-rotation.test.js",
+    "test": "node --test tests/admin-password-rotation.test.js"
   },
   "repository": {
     "type": "git",

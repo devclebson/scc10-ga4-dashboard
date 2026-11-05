@@ -8,7 +8,8 @@ import {
   findAdminSession,
   hasAdminUser,
   touchAdminSession,
-  updateAdminLastLogin
+  updateAdminLastLogin,
+  updateAdminPasswordAndRevokeSessions
 } from '../db.js';
 
 const SESSION_COOKIE = 'scc10_session';
@@ -58,6 +59,13 @@ export function isPasswordLoginConfigured() {
   return Boolean(hasAdminUser() || (process.env.SCC10_ADMIN_USERNAME && process.env.SCC10_ADMIN_PASSWORD));
 }
 
+export function rotateAdminPassword(username, newPassword) {
+  const user = findAdminUser(String(username || '').trim());
+  if (!user || !user.active) throw new Error('Usuário administrativo não encontrado ou inativo.');
+  if (String(newPassword).length < 16) throw new Error('A nova senha deve ter pelo menos 16 caracteres.');
+  updateAdminPasswordAndRevokeSessions(user.id, hashPassword(newPassword));
+}
+
 export function login(username, password) {
   ensureBootstrapAdmin();
   const normalizedUsername = String(username || '').trim();
@@ -82,12 +90,14 @@ export function login(username, password) {
   const token = randomBytes(32).toString('base64url');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
-  createAdminSession({
+  const created = createAdminSession({
     sessionHash: hashSessionToken(token),
     userId: user.id,
+    passwordHash: user.password_hash,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString()
   });
+  if (!created) return null;
   updateAdminLastLogin(user.id, now.toISOString());
   return { token, expiresAt: expiresAt.toISOString(), user: { username: user.username, role: user.role } };
 }
