@@ -4,6 +4,8 @@ import { isServiceAccountConfigured } from './services/google-auth.js';
 import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
 import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
+import { createAllowedOrigins } from './services/allowed-origins.js';
+import { createReportCache } from './services/report-cache.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -11,7 +13,7 @@ const ARTICLE_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 const DEFAULT_COLLECTOR_INTERVAL_SECONDS = 30;
 const CHANNELS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 const QUOTA_BACKOFF_MS = 15 * 60 * 1000;
-const ALLOWED_ORIGINS = new Set(['http://localhost:3000', 'http://127.0.0.1:3000']);
+const ALLOWED_ORIGINS = createAllowedOrigins(process.env.SCC10_PUBLIC_ORIGIN);
 const PUBLIC_GA4_REQUESTS_PER_MINUTE = 60;
 let publicGa4WindowStart = Date.now();
 let publicGa4RequestCount = 0;
@@ -23,6 +25,7 @@ let channelsCache = [];
 let channelsCacheUpdatedAt = 0;
 let channelsCachePropertyId = null;
 let channelsCacheDay = null;
+const historicalReportCache = createReportCache();
 
 function sendJson(res, status, payload, extraHeaders = {}) {
   const origin = res.req?.headers.origin;
@@ -88,6 +91,15 @@ function isAdminAuthorized(req) {
   return req.headers['x-admin-token'] === expected;
 }
 
+function adminTransportAllowed(req) {
+  if (process.env.NODE_ENV !== 'production') return true;
+  if (req.socket.encrypted) return true;
+  const remoteAddress = req.socket.remoteAddress;
+  const fromLocalProxy = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddress);
+  return fromLocalProxy && process.env.SCC10_PUBLIC_ORIGIN?.startsWith('https://')
+    && req.headers['x-forwarded-proto'] === 'https';
+}
+
 function validateConfig(body) {
   const propertyId = propertyIdFrom(body.propertyId);
   const allowedRanges = new Set(['7', 'today', '30', '90', '365']);
@@ -100,6 +112,7 @@ function validateConfig(body) {
 async function proxyAnalyticsRequest(req, body) {
   const token = req.headers.authorization;
   if (token?.startsWith('Bearer ')) {
+    assertPublicGa4Budget();
     const propertyId = propertyIdFrom(body.propertyId);
     const reportType = body.reportType === 'realtime' ? 'runRealtimeReport' : 'runReport';
     const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:${reportType}`, {
@@ -116,7 +129,13 @@ async function proxyAnalyticsRequest(req, body) {
   if (!isServiceAccountConfigured()) {
     throw new Error('Authorization Bearer ausente e Service Account não configurada.');
   }
-  return requestGa4Report({ ...body, propertyId: configuredPropertyIdFrom(body.propertyId) });
+  const propertyId = configuredPropertyIdFrom(body.propertyId);
+  const request = () => {
+    assertPublicGa4Budget();
+    return requestGa4Report({ ...body, propertyId });
+  };
+  if (body.reportType === 'realtime' || body.payload?.returnPropertyQuota) return request();
+  return historicalReportCache.get({ propertyId, reportType: 'standard', payload: body.payload || {} }, request, { forceRefresh: body.forceRefresh === true });
 }
 
 const server = createServer(async (req, res) => {
@@ -132,6 +151,14 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    if (!adminTransportAllowed(req) && (
+      url.pathname.startsWith('/api/admin/')
+      || ['/api/auth/login', '/api/auth/session', '/api/articles/sync'].includes(url.pathname)
+    )) {
+      sendJson(res, 403, { error: 'Administração exige HTTPS confiável.' });
+      return;
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/health') {
       sendJson(res, 200, {
         ok: true,
@@ -139,6 +166,7 @@ const server = createServer(async (req, res) => {
         authMode: isServiceAccountConfigured() ? 'service-account' : 'browser-oauth',
         adminAuthConfigured: isAdminAuthConfigured(),
         passwordLoginConfigured: isPasswordLoginConfigured(),
+        historicalReportCache: historicalReportCache.stats(),
         time: new Date().toISOString()
       });
       return;
@@ -191,7 +219,6 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/ga4/report') {
-      assertPublicGa4Budget();
       const result = await proxyAnalyticsRequest(req, await readJson(req));
       sendJson(res, result.status, result.data);
       return;

@@ -1,0 +1,23 @@
+[Unit]
+Description=SCC10 GA4 dashboard API and realtime collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scc10
+Group=scc10
+WorkingDirectory=/opt/scc10/app
+EnvironmentFile=/etc/scc10/scc10.env
+ExecStart=/usr/bin/node /opt/scc10/app/server/server.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/scc10
+
+[Install]
+WantedBy=multi-user.target

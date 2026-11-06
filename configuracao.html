@@ -6,6 +6,7 @@
   <title>SCC10 — Configuração</title>
   <link rel="icon" href="assets/images/scc10-mark.jpg">
   <link rel="stylesheet" href="src/css/app.css">
+  <script src="src/js/api-base.js"></script>
 </head>
 <body>
   <div class="container" role="main">
@@ -15,7 +16,7 @@
       <p class="setup-description">Acesso administrativo ao backend e à propriedade GA4 configurada.</p>
 
       <div id="config-status" class="config-status">Verificando backend...</div>
-      <div id="admin-login" class="admin-form">
+      <div id="admin-login" class="admin-form hidden">
         <label for="admin-username">Usuário</label>
         <input id="admin-username" type="text" autocomplete="username" placeholder="Usuário administrativo">
         <label for="admin-password">Senha</label>
@@ -61,9 +62,11 @@
         <button id="refresh-config" class="btn btn-secondary" type="button">Verificar novamente</button>
       </div>
       <p class="config-note">As credenciais permanecem no servidor. Não coloque o JSON da Service Account nesta página.</p>
+      <p class="app-version" data-app-version aria-label="Versão da aplicação">v1.0.1</p>
     </div>
   </div>
-  <script>window.SCC10_API_BASE = window.SCC10_API_BASE || `http://${location.hostname || '127.0.0.1'}:3001`;</script>
+
+  <script src="src/js/version.js?v=1.0.1"></script>
   <script type="module" src="src/js/config-app.js"></script>
 </body>
 </html>

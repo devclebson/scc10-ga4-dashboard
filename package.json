@@ -1,14 +1,16 @@
 {
   "name": "ga4-analytics-dashboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Dashboard editorial do SCC10 com analytics GA4 e monitoramento em tempo real.",
   "main": "index.js",
   "scripts": {
     "start": "npx serve . -l 3000",
     "backend": "node server/server.js",
+    "build:static": "node scripts/build-static.mjs",
+    "admin:bootstrap": "node server/bootstrap-admin.js",
     "admin:rotate-password": "node server/rotate-admin-password.js",
-    "test:syntax": "node --check src/js/app.js && node --check server/server.js && node --check server/db.js && node --check server/services/admin-auth.js && node --check server/rotate-admin-password.js && node --check tests/admin-password-rotation.test.js",
-    "test": "node --test tests/admin-password-rotation.test.js"
+    "test:syntax": "node --check src/js/app.js && node --check src/js/api-base.js && node --check src/js/config-app.js && node --check src/js/ranking-app.js && node --check src/js/dashboard/ranking.js && node --check src/js/services/analytics-api.js && node --check server/server.js && node --check server/services/report-cache.js && node --check server/db.js && node --check server/services/admin-auth.js && node --check server/services/allowed-origins.js && node --check server/bootstrap-admin.js && node --check server/rotate-admin-password.js && node --check scripts/build-static.mjs && node --check tests/admin-http.test.js && node --check tests/admin-password-rotation.test.js && node --check tests/admin-bootstrap.test.js && node --check tests/linux-deploy.test.js && node --check tests/report-cache.test.js && node --check tests/analytics-api-cache.test.js && node --check tests/ranking.test.js",
+    "test": "node --test tests/*.test.js"
   },
   "repository": {
     "type": "git",
