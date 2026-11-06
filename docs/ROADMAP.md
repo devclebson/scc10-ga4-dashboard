@@ -26,6 +26,12 @@
 - Service Account validada com relatório GA4 real sem token no navegador.
 - Coletor realtime independente validado com snapshots gravados no SQLite.
 - Dashboard validado visualmente com métricas e ranking reais.
+- Versionamento visível implementado no dashboard, ranking e configuração (`v1.0.1`).
+- Container LXC de homologação atualizado para o commit `34543ec` na branch `master`.
+- HTTPS configurado no container `192.168.0.71` com certificado para o IP.
+- Certificado confiado no Edge e Chrome, com acesso HTTPS validado.
+- Login administrativo validado via HTTPS.
+- `master` e `develop` sincronizadas no commit `34543ec`; branches temporárias removidas.
 
 ## Estado atual
 
@@ -39,7 +45,7 @@ configuracao.html  ← se houver erro de configuração
  dashboard.html     ← se a consulta GA4 for validada
 ```
 
-O ranking realtime existente não foi alterado. O teste enriquecido é executado separadamente para evitar regressões.
+O ranking realtime existente está funcionando com snapshots do backend. A próxima correção isolada tratará o agrupamento `(other)` do GA4, sem misturar a alteração com autenticação ou coleta.
 
 ## Estado da evolução editorial
 
@@ -55,9 +61,11 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 
 ## Próxima etapa imediata
 
+- Remover `(other)` da lista exibida do ranking editorial, mantendo suas visualizações no denominador do portal.
 - Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
 - Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
 - Remover código morto do fluxo OAuth legado depois da homologação.
+- Restringir a regra sudo temporária criada para o usuário de deploy.
 
 ## Backend e coleta
 
@@ -69,7 +77,8 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 
 ## Segurança e operação
 
-- Validar login administrativo em produção com `NODE_ENV=production` e remover o fallback `SCC10_ADMIN_TOKEN` após a migração.
+- Login administrativo validado via HTTPS em `NODE_ENV=production`; remover o fallback `SCC10_ADMIN_TOKEN` após a migração.
+- Substituir o certificado autoassinado por certificado de CA interna ou DNS confiável antes de exposição ampliada.
 - Remover gradualmente o OAuth legado do frontend.
 - Restringir CORS e endpoints administrativos.
 - Criar backup automático do SQLite.

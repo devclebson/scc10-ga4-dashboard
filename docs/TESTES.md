@@ -23,6 +23,27 @@ curl http://127.0.0.1:3001/api/config
 
 O resultado esperado é `authMode: service-account` e `configured: true`.
 
+## Homologação do container
+
+Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
+`34543ec0252e864557b3cd095eb1f53cad4b2103` e a versão `v1.0.1`.
+
+Validações concluídas:
+
+- serviço `scc10-api` ativo;
+- `/api/health` e `/api/config` respondendo via HTTPS;
+- HTTP redirecionando para HTTPS;
+- dashboard e `ranking.html` carregando com HTTP 200;
+- coleta realtime e snapshots funcionando;
+- certificado para `192.168.0.71` confiado no Edge e no Chrome;
+- login administrativo funcionando via HTTPS.
+
+Fingerprint SHA-256 do certificado homologado:
+
+```text
+47:0F:83:34:57:E5:E1:37:38:81:E5:82:63:1B:33:28:3D:80:30:A7:8D:ED:CA:B5:F2:52:E6:54:AB:EC:B5:D8
+```
+
 Para testar o login administrativo, configure temporariamente no processo do backend:
 
 ```powershell
