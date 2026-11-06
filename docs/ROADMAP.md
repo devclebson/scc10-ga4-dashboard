@@ -62,6 +62,7 @@ O ranking realtime existente está funcionando com snapshots do backend. A próx
 ## Próxima etapa imediata
 
 - Remover `(other)` da lista exibida do ranking editorial, mantendo suas visualizações no denominador do portal.
+- Consultar `pageTitle`/`pagePath` em lote para títulos sem enriquecimento completo, mantendo resultados negativos em cache.
 - Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
 - Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
 - Remover código morto do fluxo OAuth legado depois da homologação.
@@ -90,6 +91,8 @@ O ranking realtime existente está funcionando com snapshots do backend. A próx
 - Sincronizar metadados do CMS ou relatório GA4.
 - Criar histórico de audiência por matéria.
 - Exibir categoria, autor, data, URL, pico e crescimento.
+
+O fallback de URL foi implementado localmente. Os títulos muito recentes que ainda não aparecem no relatório histórico do GA4 continuam sem URL por limitação da fonte, não por associação aproximada; não devemos fabricar caminhos.
 
 ## Validação
 
