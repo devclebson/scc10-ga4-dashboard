@@ -111,6 +111,7 @@ docs/                   visão do produto, arquitetura, decisões, roadmap e tes
 
 O plano de organização, limpeza e próximos upgrades está em `docs/PLANO-EVOLUCAO.md`.
 O fluxo de branches e Pull Requests está em `docs/FLUXO-GIT.md`.
+Para retomar o trabalho em outra máquina, consulte `docs/STATUS-CONTINUIDADE.md` antes de criar uma nova branch.
 O ranking operacional atualiza a leitura do SQLite a cada 30 segundos, sem fazer uma nova consulta ao GA4; em caso de coleta antiga, a página indica que os dados estão desatualizados. Visão Geral e Aquisição de Tráfego permanecem no dashboard até a próxima etapa de separação.
 
 ## ✅ Estado verificado
@@ -118,5 +119,5 @@ O ranking operacional atualiza a leitura do SQLite a cada 30 segundos, sem fazer
 - Service Account autenticada no backend.
 - Relatório GA4 real respondendo sem token no navegador.
 - Coletor realtime independente salvando snapshots a cada 30 segundos.
-- Dashboard carregando ranking, categorias, autores, URLs e métricas reais.
+- Dashboard carregando ranking e métricas reais; categorias, autores e URLs aparecem quando o relatório histórico do GA4 retorna esses campos.
 - Histórico local alimentado pelo SQLite.

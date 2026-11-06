@@ -45,7 +45,7 @@ configuracao.html  ← se houver erro de configuração
  dashboard.html     ← se a consulta GA4 for validada
 ```
 
-O ranking realtime existente está funcionando com snapshots do backend. A próxima correção isolada tratará o agrupamento `(other)` do GA4, sem misturar a alteração com autenticação ou coleta.
+O ranking realtime existente está funcionando com snapshots do backend. A branch atual contém a correção de `(other)` e o fallback de URL; ainda não foi integrada em `develop` nem publicada no container.
 
 ## Estado da evolução editorial
 
@@ -53,6 +53,8 @@ O ranking realtime existente está funcionando com snapshots do backend. A próx
 - Cache de matérias integrado ao ranking realtime.
 - Ranking com filtro de páginas não editoriais e seleção Top-N em dropdown.
 - `materia.html` criada com origens de tráfego e detalhes históricos.
+- `(other)` removido da lista editorial sem alterar o denominador do portal.
+- Fallback em lote de `pageTitle`/`pagePath` implementado para títulos sem enriquecimento completo.
 - Dimensões técnicas identificadas:
   - `customEvent:categories` → Categorias;
   - `customEvent:author` → Autor;
@@ -61,10 +63,9 @@ O ranking realtime existente está funcionando com snapshots do backend. A próx
 
 ## Próxima etapa imediata
 
-- Remover `(other)` da lista exibida do ranking editorial, mantendo suas visualizações no denominador do portal.
-- Consultar `pageTitle`/`pagePath` em lote para títulos sem enriquecimento completo, mantendo resultados negativos em cache.
 - Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
 - Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
+- Validar o fallback de URL com um título que exista no relatório histórico, mas não no cache enriquecido.
 - Remover código morto do fluxo OAuth legado depois da homologação.
 - Restringir a regra sudo temporária criada para o usuário de deploy.
 

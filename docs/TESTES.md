@@ -44,6 +44,18 @@ Fingerprint SHA-256 do certificado homologado:
 47:0F:83:34:57:E5:E1:37:38:81:E5:82:63:1B:33:28:3D:80:30:A7:8D:ED:CA:B5:F2:52:E6:54:AB:EC:B5:D8
 ```
 
+## Validação local atual
+
+A branch `fix/remover-other-ranking` foi validada localmente com Service Account em
+`http://localhost:3000/dashboard` e backend em `http://127.0.0.1:3001`.
+
+- 23 testes passaram;
+- `npm run test:syntax` passou;
+- relatório GA4 real respondeu HTTP 200;
+- dashboard carregou dados realtime reais;
+- `(other)` não apareceu no ranking;
+- a credencial foi lida de `C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json`, fora do Git.
+
 Para testar o login administrativo, configure temporariamente no processo do backend:
 
 ```powershell
