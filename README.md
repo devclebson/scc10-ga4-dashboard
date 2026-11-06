@@ -18,7 +18,7 @@
 ### 🚀 Monitor Editorial em Tempo Real (Ao Vivo)
 - **Leitores Ativos Instantâneos:** Contagem de leitores nos últimos 5 e 30 minutos via API oficial do Google Analytics 4.
 - **Visualizações (30 min):** Volume consolidado de visualizações de página na janela recente.
-- **Ranking de Notícias em Tempo Real:** Tabela dinâmica com as matérias mais lidas agora (Top 10, Top 20 ou Top 50), combinando URL e título sem duplicações.
+- **Ranking de Notícias em Tempo Real:** Prévia Top 5 no Monitor Editorial e página própria `ranking.html` com Top 10, Top 20 ou Top 50, URL e análise da matéria.
 - **Indicador de Tendência:** Detecção de aceleração de audiência (`🔥 Em Alta`, `↑ Subindo`, `Estável`, `↓ Caindo`).
 - **Curva Minuto a Minuto:** Gráfico de evolução da audiência nos últimos 30 minutos (`minutesAgo`).
 - **Canais do Dia (Intraday):** Distribuição do tráfego de hoje (Google Busca, Google Discover, Direto, Redes Sociais, WhatsApp).
@@ -51,6 +51,8 @@
 
 ## 🚀 Como Executar Localmente
 
+Para testar em um container LXC no Proxmox com Ubuntu Server, HTTPS, serviço systemd e credencial protegida, siga [Instalação Ubuntu/Proxmox](docs/DEPLOY-UBUNTU-PROXMOX.md). O JSON da Service Account fica fora do repositório e da pasta pública, em `/etc/scc10/credentials/ga4.json`; as opções não secretas ficam em `/etc/scc10/scc10.env`.
+
 ```bash
 # 1. Clone o repositório
 git clone <URL_DO_SEU_REPOSITORIO>
@@ -61,7 +63,7 @@ npm install
 
 # 3. Configure o backend com uma Service Account fora do repositório
 # PowerShell:
-$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
 $env:SCC10_PROPERTY_ID="309943616"
 $env:SCC10_ADMIN_USERNAME="admin"
 $env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"
@@ -89,11 +91,14 @@ npm run start
 
 O OAuth do navegador permanece no código apenas como fallback legado durante a migração. O fluxo principal do projeto usa a Service Account no backend. `SCC10_ADMIN_TOKEN` permanece somente como fallback temporário na API. Instalações que usam apenas esse token devem configurar `SCC10_ADMIN_USERNAME` e `SCC10_ADMIN_PASSWORD` no backend e reiniciar o serviço para criar o primeiro usuário antes de administrar pela nova tela; o token sozinho não habilita o login visual.
 
+Para trocar a senha depois da criação do usuário, execute `npm run admin:rotate-password -- admin` em um terminal interativo na raiz do projeto. A senha é solicitada sem aparecer na tela ou no histórico do shell; o comando revoga as sessões antigas. Alterar `SCC10_ADMIN_PASSWORD` sozinho não muda a senha de um usuário já criado. Remova essa variável do ambiente após a criação inicial. A troca da senha não desativa o fallback `SCC10_ADMIN_TOKEN`; remova essa variável do ambiente e reinicie o backend para revogar também o token legado.
+
 ## 🧭 Estrutura atual
 
 ```text
 index.html              inicialização e preflight GA4
 dashboard.html          dashboard principal
+ranking.html            ranking operacional a partir dos snapshots do servidor
 configuracao.html       configuração operacional
 ranking-teste.html      experimento isolado de metadados
 materia.html            detalhe e origens de uma matéria
@@ -105,6 +110,8 @@ docs/                   visão do produto, arquitetura, decisões, roadmap e tes
 ```
 
 O plano de organização, limpeza e próximos upgrades está em `docs/PLANO-EVOLUCAO.md`.
+O fluxo de branches e Pull Requests está em `docs/FLUXO-GIT.md`.
+O ranking operacional atualiza a leitura do SQLite a cada 30 segundos, sem fazer uma nova consulta ao GA4; em caso de coleta antiga, a página indica que os dados estão desatualizados. Visão Geral e Aquisição de Tráfego permanecem no dashboard até a próxima etapa de separação.
 
 ## ✅ Estado verificado
 

@@ -3,6 +3,7 @@
     import { createAnalyticsApi } from './services/analytics-api.js';
     import { createGoogleAuth } from './services/auth.js';
     import { storage } from './services/storage.js';
+    import { buildRankingArticles, buildRankingRowsHtml, canOpenRanking } from './dashboard/ranking.js';
 
     let charts = {};
     let realtimeInterval = null;
@@ -13,6 +14,8 @@
     let channelsTodayLastFetchedAt = 0;
     let channelsTodayPropertyId = null;
     let realtimeCycleId = 0;
+    let backendRankingPropertyId = null;
+    let usingBackendRanking = false;
     const CHANNELS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
     // ============ ELEMENTOS DOM ============
@@ -92,6 +95,7 @@
             callback: (r) => {
               if (r.access_token) {
                 state.accessToken = r.access_token;
+                usingBackendRanking = false;
                 tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
 
 
@@ -167,6 +171,7 @@
               return;
             }
             state.accessToken = r.access_token;
+            usingBackendRanking = false;
             state.isDemo = false;
             tokenExpiresAt = Date.now() + ((r.expires_in || 3600) * 1000);
             storage.setClientId(clientId);
@@ -542,18 +547,18 @@
       try {
         // Consultas históricas com paginação correta (limit=500)
         const [overview, channels, geo, devices, pages, events] = await Promise.all([
-          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.start, historicalRange.end),
-          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.start, historicalRange.end),
-          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10, historicalRange.start, historicalRange.end),
-          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5, historicalRange.start, historicalRange.end),
-          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25, historicalRange.start, historicalRange.end),
-          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15, historicalRange.start, historicalRange.end)
+          runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['country'], ['sessions', 'activeUsers'], 10, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['deviceCategory'], ['sessions', 'activeUsers'], 5, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['pagePath'], ['screenPageViews', 'activeUsers', 'averageSessionDuration', 'bounceRate'], 25, historicalRange.start, historicalRange.end, forceRefresh),
+          runReport(propId, ['eventName'], ['eventCount', 'totalUsers'], 15, historicalRange.start, historicalRange.end, forceRefresh)
         ]);
 
         let conversions = null;
         try {
           // Busca eventos com conversões reais
-          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10, historicalRange.start, historicalRange.end);
+          conversions = await runReport(propId, ['eventName'], ['conversions', 'sessions'], 10, historicalRange.start, historicalRange.end, forceRefresh);
         } catch (e) {
           console.log('Conversões não disponíveis ou vazias');
         }
@@ -564,8 +569,8 @@
         if (state.compareEnabled) {
           try {
             const [prevOverview, prevChannels] = await Promise.all([
-              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.previousStart, historicalRange.previousEnd),
-              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.previousStart, historicalRange.previousEnd)
+              runReport(propId, ['date'], ['sessions', 'activeUsers', 'screenPageViews', 'bounceRate', 'averageSessionDuration', 'engagedSessions', 'newUsers'], 500, historicalRange.previousStart, historicalRange.previousEnd, forceRefresh),
+              runReport(propId, ['sessionDefaultChannelGroup'], ['sessions', 'activeUsers'], 15, historicalRange.previousStart, historicalRange.previousEnd, forceRefresh)
             ]);
             state.prevData = { overview: prevOverview, channels: prevChannels };
           } catch (e) {
@@ -691,32 +696,14 @@
 
 
         if (pagesRt?.rows) {
-          const newMap = new Map();
-          const cleanArticles = [];
-
-          pagesRt.rows.forEach(r => {
-            const title = r.dimensionValues[0].value || 'SCC10 Notícia';
-            const normalizedTitle = title.toLocaleLowerCase('pt-BR').trim();
-            const isNonArticle = normalizedTitle === '(not set)'
-              || normalizedTitle === 'página inicial'
-              || normalizedTitle === 'página não encontrada'
-              || normalizedTitle.startsWith('ao vivo —')
-              || normalizedTitle.includes('rádio clube');
-            if (isNonArticle) return;
-            const users = parseInt(r.metricValues[0].value) || 0;
-            const views = parseInt(r.metricValues[1].value) || 0;
-
-            // Tendência baseada no snapshot anterior em memória
-            const rankingKey = title;
-            const prevUsers = state.editorial.previousRankings.get(rankingKey) || users;
-            let trend = 'stable';
-            if (users > prevUsers + 4) trend = 'hot';
-            else if (users > prevUsers) trend = 'up';
-            else if (users < prevUsers) trend = 'down';
-
-            newMap.set(rankingKey, users);
-            cleanArticles.push({ url: '', title, users, views, trend });
-          });
+          const { articles: cleanArticles, rankings: newMap } = buildRankingArticles(
+            pagesRt.rows.map(r => ({
+              title: r.dimensionValues?.[0]?.value,
+              users: r.metricValues?.[0]?.value,
+              views: r.metricValues?.[1]?.value
+            })),
+            state.editorial.previousRankings
+          );
 
           try {
             const enriched = await enrichArticles(propId, cleanArticles.map(article => article.title));
@@ -952,14 +939,9 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
               Ranking das Notícias Mais Lidas Agora
             </div>
-            <label class="ranking-limit-control">
-              <span style="font-size:13px; color:var(--text-muted);">Exibir:</span>
-              <select id="ranking-limit" class="ranking-limit-select" aria-label="Quantidade de notícias no ranking">
-                <option value="10" ${ed.rankingLimit === 10 ? 'selected' : ''}>Top 10</option>
-                <option value="20" ${ed.rankingLimit === 20 ? 'selected' : ''}>Top 20</option>
-                <option value="50" ${ed.rankingLimit === 50 ? 'selected' : ''}>Top 50</option>
-              </select>
-            </label>
+            ${canOpenRanking(state.selectedProperty?.id, backendRankingPropertyId, state.isDemo, usingBackendRanking)
+              ? '<a class="btn btn-secondary" href="ranking.html">Ver ranking completo →</a>'
+              : `<span style="font-size:12px; color:var(--text-muted);">${state.isDemo ? 'Prévia demonstrativa' : 'Ranking completo disponível com coleta do servidor'}</span>`}
           </div>
 
           <div class="ranking-container">
@@ -970,22 +952,18 @@
                   <th>Título da Notícia / URL</th>
                   <th style="text-align:right; width:130px;">Leitores (30m)</th>
                   <th style="text-align:right; width:120px;">Visualizações</th>
-                  <th style="text-align:right; width:140px;">% do Total</th>
+                  <th style="text-align:right; width:140px;">% das notícias selecionadas</th>
                   <th style="text-align:center; width:110px;">Tendência</th>
                 </tr>
               </thead>
               <tbody id="ranking-tbody">
-                ${buildRankingRowsHtml(ed.topPages.slice(0, ed.rankingLimit), totalViews)}
+                ${buildRankingRowsHtml(ed.topPages.slice(0, 5), totalViews, state.selectedProperty?.id?.replace('properties/', ''))}
               </tbody>
             </table>
           </div>
         </div>
       `;
 
-      $('ranking-limit')?.addEventListener('change', event => {
-        ed.rankingLimit = Number(event.target.value) || 20;
-        renderEditorialRankingOnly();
-      });
 
       // Gráfico de linha do minuto a minuto
       const canvasTrend = $('editorial-trend-chart');
@@ -1064,7 +1042,7 @@
 
       const tbody = $('ranking-tbody');
       if (tbody) {
-        tbody.innerHTML = buildRankingRowsHtml(ed.topPages.slice(0, ed.rankingLimit), totalViews);
+        tbody.innerHTML = buildRankingRowsHtml(ed.topPages.slice(0, 5), totalViews, state.selectedProperty?.id?.replace('properties/', ''));
       }
 
       const kpi5 = $('ed-kpi-5m'); if (kpi5) kpi5.textContent = formatNumber(ed.activeUsers5m);
@@ -1074,69 +1052,6 @@
       const kpiTime = $('ed-kpi-time'); if (kpiTime) kpiTime.textContent = `Última: ${ed.lastUpdated || 'agora'}`;
     }
 
-    function buildRankingRowsHtml(articles, totalViews) {
-      if (!articles.length) {
-        return `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">Nenhuma notícia ativa detectada nesta janela de 30 minutos.</td></tr>`;
-      }
-
-      return articles.map((p, idx) => {
-        const rank = idx + 1;
-        const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-        const pct = ((p.views / totalViews) * 100).toFixed(1);
-
-        let trendHtml = '<span class="article-trend trend-stable">Estável</span>';
-        if (p.trend === 'hot') trendHtml = '<span class="article-trend trend-hot">🔥 Em Alta</span>';
-        else if (p.trend === 'up') trendHtml = '<span class="article-trend trend-up">↑ Subindo</span>';
-        else if (p.trend === 'down') trendHtml = '<span class="article-trend trend-down">↓ Caindo</span>';
-
-        const fullUrl = p.url ? (p.url.startsWith('http') ? p.url : `https://scc10.com.br${p.url}`) : null;
-        const titleHtml = fullUrl
-          ? `<a href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" class="article-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</a>`
-          : `<span class="article-title" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</span>`;
-        const urlHtml = p.url
-          ? `<div class="article-url">${escapeHtml(p.url)}</div>`
-          : `<div class="article-url">URL não disponível no relatório realtime</div>`;
-        const metadataParts = [
-          p.category ? `<span class="article-meta-item"><strong>Categoria</strong> ${escapeHtml(p.category)}</span>` : null,
-          p.author ? `<span class="article-meta-item"><strong>Autor</strong> ${escapeHtml(p.author)}</span>` : null,
-          p.publishedAt ? `<span class="article-meta-item"><strong>Publicado</strong> ${escapeHtml(p.publishedAt)}</span>` : null
-        ].filter(Boolean);
-        const metadataHtml = metadataParts.length
-          ? `<div class="article-meta">${metadataParts.join('')}</div>`
-          : '<div class="article-meta article-meta-empty">Metadados históricos indisponíveis</div>';
-        const detailUrl = p.url
-          ? `materia.html#propertyId=${encodeURIComponent(state.selectedProperty?.id?.replace('properties/', '') || '')}&title=${encodeURIComponent(p.title)}&path=${encodeURIComponent(p.url)}`
-          : null;
-        const detailActionHtml = detailUrl
-          ? `<a class="article-detail-action" href="${detailUrl}">Ver análise da matéria</a>`
-          : '';
-
-        return `
-          <tr>
-            <td><span class="rank-num ${rankClass}">${rank}</span></td>
-            <td class="article-title-cell">
-              ${titleHtml}
-              ${metadataHtml}
-              ${urlHtml}
-              ${detailActionHtml}
-            </td>
-            <td style="text-align:right; font-weight:700; color:var(--success); font-size:16px;">
-              ${p.users.toLocaleString('pt-BR')}
-            </td>
-            <td style="text-align:right; font-weight:600;">
-              ${p.views.toLocaleString('pt-BR')}
-            </td>
-            <td style="text-align:right;">
-              <span class="share-bar-container"><span class="share-bar-fill" style="width:${Math.min(pct * 3, 100)}%;"></span></span>
-              <span style="font-size:12px; font-weight:600;">${pct}%</span>
-            </td>
-            <td style="text-align:center;">
-              ${trendHtml}
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
 
     // =========================================================
     // 2. ABA: VISÃO GERAL (OVERVIEW) — CORRIGIDA
@@ -1692,10 +1607,12 @@
         const config = await getBackendConfig();
         if (!config.configured || !config.propertyId) return false;
 
+        backendRankingPropertyId = String(config.propertyId).replace(/^properties\//, '');
+        usingBackendRanking = true;
         state.accessToken = null;
         state.isDemo = false;
         state.selectedProperty = {
-          id: `properties/${config.propertyId}`,
+          id: `properties/${backendRankingPropertyId}`,
           name: 'SCC10 — GA4 Backend',
           account: 'Configuração do servidor'
         };
@@ -1704,6 +1621,8 @@
         await loadAllAnalytics();
         return true;
       } catch (error) {
+        backendRankingPropertyId = null;
+        usingBackendRanking = false;
         console.info('Backend sem configuração automática:', error.message);
         return false;
       }
@@ -1742,6 +1661,7 @@
         onToken: response => {
           if (!response?.access_token) return;
           state.accessToken = response.access_token;
+          usingBackendRanking = false;
           tokenExpiresAt = Date.now() + ((response.expires_in || 3600) * 1000);
 
           const savedPropStr = storage.getSelectedProperty();

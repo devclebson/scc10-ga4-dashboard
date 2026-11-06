@@ -5,7 +5,7 @@
 PowerShell:
 
 ```powershell
-$env:GOOGLE_SERVICE_ACCOUNT_FILE="C:\ProgramData\SCC10\secrets\ga4-service-account.json"
+$env:GOOGLE_SERVICE_ACCOUNT_FILE="$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
 $env:SCC10_PROPERTY_ID="309943616"
 $env:SCC10_ADMIN_USERNAME="admin"
 $env:SCC10_ADMIN_PASSWORD="defina-uma-senha-forte"
@@ -86,6 +86,13 @@ Verifique:
 - título, categoria, autor, data e visualizações.
 
 Esse teste não altera o ranking realtime existente.
+
+### Ranking operacional
+
+Abra `http://localhost:3000/ranking.html` ou use “Ver ranking completo” no Monitor Editorial.
+Verifique a prévia Top 5 no Monitor, a seleção Top 10/20/50 na página exclusiva, o link para análise da matéria e o horário da última coleta.
+No painel de rede do navegador, a nova página deve consultar `/api/config`, `/api/snapshots` e `/api/articles/enrich`, mas não `/api/ga4/report`.
+Se o coletor parar, o status deve indicar “Dados desatualizados” após 90 segundos, sem consultar o GA4 por conta própria.
 
 ## 6. Sincronizar o cache de matérias
 

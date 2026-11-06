@@ -4,6 +4,10 @@
 
 Manter o dashboard SCC10 funcional enquanto reduzimos código legado, melhoramos segurança, organizamos a arquitetura e criamos uma rotina previsível de evolução.
 
+## Prioridade operacional atual
+
+Antes de separar outras páginas, reduzir o tempo de retorno ao dashboard e o consumo de quota GA4. Diagnóstico, sequência de implementação e critérios de aceite: [Plano de desempenho e quota do GA4](PLANO-PERFORMANCE-QUOTA-GA4.md). A página de ranking em branch de trabalho ainda não está homologada; não misturar seu lançamento com a correção do carregamento inicial.
+
 ## Método de trabalho
 
 Cada melhoria deve ser executada como uma fatia pequena e verificável:

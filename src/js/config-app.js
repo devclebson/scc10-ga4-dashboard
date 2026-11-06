@@ -17,6 +17,8 @@ const compareInput = document.querySelector('#config-compare-input');
 const intervalInput = document.querySelector('#config-interval-input');
 const refreshButton = document.querySelector('#refresh-config');
 const saveButton = document.querySelector('#save-config');
+const localDevelopment = ['localhost', '127.0.0.1'].includes(location.hostname) && location.port === '3000';
+const adminUiAllowed = location.protocol === 'https:' || localDevelopment;
 
 async function apiFetch(path, options = {}) {
   return fetch(`${API_BASE}${path}`, { ...options, credentials: 'include' });
@@ -44,6 +46,14 @@ function fillForm(config) {
 }
 
 async function loadConfigurationStatus() {
+  if (!adminUiAllowed) {
+    loginPanel.classList.add('hidden');
+    adminPanel.classList.add('hidden');
+    passwordInput.value = '';
+    statusEl.textContent = 'Administração indisponível por HTTP. Use HTTPS confiável para entrar.';
+    statusEl.className = 'config-status error';
+    return;
+  }
   statusEl.textContent = 'Verificando backend...';
   statusEl.className = 'config-status loading';
   try {
@@ -120,6 +130,7 @@ async function saveConfiguration() {
 }
 
 async function loginAdmin() {
+  if (!adminUiAllowed) return;
   loginButton.disabled = true;
   loginButton.textContent = 'Entrando...';
   loginError.classList.add('hidden');

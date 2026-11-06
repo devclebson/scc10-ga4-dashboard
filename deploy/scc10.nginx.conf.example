@@ -1,0 +1,33 @@
+# Substitua scc10.exemplo.interno pelo DNS do container antes de ativar.
+# Os certificados são armazenados fora do repositório e devem ser confiáveis no cliente.
+server {
+    listen 80;
+    server_name scc10.exemplo.interno;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name scc10.exemplo.interno;
+    ssl_certificate /etc/scc10/tls/fullchain.pem;
+    ssl_certificate_key /etc/scc10/tls/privkey.pem;
+
+    root /var/www/scc10;
+    index index.html;
+    add_header X-Content-Type-Options nosniff always;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        try_files $uri $uri.html $uri/ =404;
+    }
+
+    location ~ /\. {
+        return 404;
+    }
+}

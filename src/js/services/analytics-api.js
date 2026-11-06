@@ -8,7 +8,7 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
       : { 'Content-Type': 'application/json' };
   }
 
-  async function runReport(propId, dims, metrics, limit = 500, startDate = null, endDate = null) {
+  async function runReport(propId, dims, metrics, limit = 500, startDate = null, endDate = null, forceRefresh = false) {
     if (isTokenExpired()) {
       onTokenExpired();
       throw new Error('Token expirado.');
@@ -33,7 +33,7 @@ export function createAnalyticsApi({ getAccessToken, getDateRange, isTokenExpire
     const res = await fetch(`${BACKEND_API_BASE}/api/ga4/report`, {
       method: 'POST',
       headers: requestHeaders(),
-      body: JSON.stringify({ propertyId: propId, reportType: 'standard', payload })
+      body: JSON.stringify({ propertyId: propId, reportType: 'standard', payload, forceRefresh })
     });
 
     const data = await res.json();
