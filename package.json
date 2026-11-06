@@ -1,6 +1,6 @@
 {
   "name": "ga4-analytics-dashboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Dashboard editorial do SCC10 com analytics GA4 e monitoramento em tempo real.",
   "main": "index.js",
   "scripts": {
