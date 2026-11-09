@@ -90,6 +90,7 @@ Não atualizar o container sem autorização explícita.
 
 As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local e do dashboard realtime foram concluídas em 9 de novembro de 2026.
 Títulos recentes sem URL foram investigados: o título realtime testado não teve correspondência exata no relatório histórico, portanto o sistema mantém a URL indisponível sem fabricar caminho; a sincronização periódica poderá atualizar o cache depois do processamento do GA4.
+O Ranking de Autores foi ajustado para filtrar autores pelas matérias cuja `customEvent:published_date` pertence ao período selecionado; no mês atual, o teste visual passou de 308 para 15 autores.
 
 ## Regra de trabalho
 

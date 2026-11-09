@@ -6,12 +6,14 @@ function metricAt(row, index) {
   return Number(row?.metricValues?.[index]?.value || 0);
 }
 
-export function aggregateAuthorRows(rows) {
+export function aggregateAuthorRows(rows, { publishedFrom = '', publishedTo = '' } = {}) {
   const authors = new Map();
   for (const row of rows || []) {
     const author = valueAt(row, 0).trim();
     const title = valueAt(row, 1).trim();
+    const publishedAt = valueAt(row, 3).trim();
     if (!author || author === '(not set)' || !title || title === '(not set)') continue;
+    if (!publishedAt || (publishedFrom && publishedAt < publishedFrom) || (publishedTo && publishedAt > publishedTo)) continue;
     const views = metricAt(row, 1);
     const readers = metricAt(row, 0);
     const current = authors.get(author) || { author, views: 0, readers: 0, articleMap: new Map() };

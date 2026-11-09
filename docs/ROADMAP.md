@@ -72,7 +72,7 @@ Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou
 
 A investigação dos títulos recentes sem URL mostrou que o título exibido no realtime pode não aparecer com correspondência exata no relatório histórico de 30 dias. O sistema agora consulta os sitemaps recentes do SCC10, usa somente caminhos encontrados no sitemap e mantém o fallback histórico do GA4 para os demais metadados.
 
-Ranking de autores iniciado em `autores.html`: período mês atual, pódio, ranking por visualizações, publicações distintas por título e matéria de maior alcance. A primeira versão não trata a soma de usuários por matéria como usuários únicos do período.
+Ranking de autores iniciado em `autores.html`: período mês atual, pódio, ranking por visualizações de matérias publicadas no período, publicações distintas por título e matéria de maior alcance. Autores antigos que apenas recebem tráfego de matérias antigas ficam fora do recorte. A primeira versão não trata a soma de usuários por matéria como usuários únicos do período.
 
 ## Backend e coleta
 

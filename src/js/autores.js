@@ -8,12 +8,24 @@ const podiumEl = document.querySelector('#authors-podium');
 const bodyEl = document.querySelector('#authors-body');
 
 function dateRange(value) {
+  const today = new Date();
+  const publishedTo = localDate(today);
   if (value === 'month') {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { startDate: start.toISOString().slice(0, 10), endDate: 'today' };
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { report: { startDate: localDate(start), endDate: 'today' }, publishedFrom: localDate(start), publishedTo };
   }
-  return { startDate: value, endDate: 'today' };
+  if (value === 'today') return { report: { startDate: 'today', endDate: 'today' }, publishedFrom: publishedTo, publishedTo };
+  const days = value === '7daysAgo' ? 7 : 90;
+  const start = new Date(today);
+  start.setDate(start.getDate() - days);
+  return { report: { startDate: value, endDate: 'today' }, publishedFrom: localDate(start), publishedTo };
+}
+
+function localDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function number(value) {
@@ -37,6 +49,7 @@ async function loadRanking() {
     const config = await fetch(`${API_BASE}/api/config`).then(response => response.json());
     if (!config.configured || !config.propertyId) throw new Error('Configure uma propriedade GA4 no backend.');
     window.__propertyId = String(config.propertyId).replace(/^properties\//, '');
+    const period = dateRange(rangeEl.value);
     const response = await fetch(`${API_BASE}/api/ga4/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,8 +57,8 @@ async function loadRanking() {
         propertyId: window.__propertyId,
         reportType: 'standard',
         payload: {
-          dateRanges: [dateRange(rangeEl.value)],
-          dimensions: [{ name: 'customEvent:author' }, { name: 'pageTitle' }, { name: 'pagePath' }],
+          dateRanges: [period.report],
+          dimensions: [{ name: 'customEvent:author' }, { name: 'pageTitle' }, { name: 'pagePath' }, { name: 'customEvent:published_date' }],
           metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
           orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
           limit: 100000
@@ -54,7 +67,7 @@ async function loadRanking() {
     });
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error?.message || 'Não foi possível carregar o ranking de autores.');
-    const authors = aggregateAuthorRows(data.rows);
+    const authors = aggregateAuthorRows(data.rows, { publishedFrom: period.publishedFrom, publishedTo: period.publishedTo });
     render(authors);
     statusEl.textContent = `${authors.length} autores encontrados · ${data.rowCount || 0} linhas do relatório · período: ${rangeEl.options[rangeEl.selectedIndex].text}`;
     statusEl.className = 'article-detail-status';
