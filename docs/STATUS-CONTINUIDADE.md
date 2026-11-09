@@ -1,25 +1,30 @@
 # Status de continuidade — SCC10 Monitor Editorial
 
-Atualizado em 6 de novembro de 2026.
+Atualizado em 9 de novembro de 2026.
 
 ## Ponto exato do projeto
 
-- Branch de trabalho: `fix/remover-other-ranking`
-- Commit atual: `30a53e0761966745f5faa25a33f63dde7f173cb8`
-- Base da branch: `develop` no commit `34543ec0252e864557b3cd095eb1f53cad4b2103`
-- Branch `master`: `34543ec0252e864557b3cd095eb1f53cad4b2103`
-- Branch `develop`: `34543ec0252e864557b3cd095eb1f53cad4b2103`
-- A branch de trabalho está publicada no GitHub.
-- A branch de trabalho ainda não foi integrada em `develop`, `master` ou no container.
+- Branch local de continuidade: `develop`.
+- `develop`: `d545bc7c8dccdc9affc982146eabd27f2d617219`.
+- `master`: `1cc438505e19f08e7b77154852f98a43fdf9c0cd`.
+- PR #6 (`migration/flask-structure`) integrada em `develop`.
+- PR #7 (`feat/flask-report-cache`) integrada em `develop`.
+- PR #8 (`develop`) integrada em `master`.
+- Branches finalizadas `migration/flask-structure`, `feat/flask-report-cache` e `fix/remover-other-ranking` removidas.
+- Branches remotas existentes: `develop` e `master`.
+- O container não foi atualizado neste ciclo.
+- O worktree principal está limpo e sincronizado com `origin/develop`.
 
-## O que foi feito nesta branch
+## O que está validado
 
-- `(other)` do GA4 deixou de aparecer como notícia no ranking editorial.
+- `(other)` do GA4 não aparece como notícia no ranking editorial.
 - As visualizações de `(other)` continuam no denominador do portal.
-- Fallback em lote implementado para consultar `pageTitle` e `pagePath` de títulos sem enriquecimento completo.
-- Resultados negativos do fallback são armazenados para não repetir consulta a cada ciclo de 30 segundos.
-- Teste automatizado criado para o payload do fallback.
-- Documentação atualizada com o histórico, o estado do container e a validação local.
+- Fallback em lote de `pageTitle` e `pagePath` validado.
+- Login administrativo Flask, sessão, CSRF e expiração validados.
+- Diagnóstico operacional validado com coletor Node real e SQLite compartilhado.
+- Relatório histórico de matéria validado com dados reais do GA4.
+- Cache histórico Flask validado: primeira consulta gera `miss`, segunda consulta gera `hit`.
+- Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas
 
@@ -33,23 +38,32 @@ Atualizado em 6 de novembro de 2026.
 
 ## Executar em outro PC
 
+Clone e prepare a branch principal:
+
+```bash
+git clone https://github.com/devclebson/scc10-ga4-dashboard.git
+cd scc10-ga4-dashboard
+git fetch origin
+git switch develop
+git pull --ff-only origin develop
+npm install
+```
+
+Crie o ambiente Python e instale as dependências:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+```
+
 Não copie credenciais para o Git. Coloque o JSON da Service Account em um caminho privado, por exemplo:
 
 ```text
 C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json
 ```
 
-Clone e selecione a branch:
-
-```bash
-git clone https://github.com/devclebson/scc10-ga4-dashboard.git
-cd scc10-ga4-dashboard
-git fetch origin
-git switch --track origin/fix/remover-other-ranking
-npm install
-```
-
-PowerShell, terminal do backend:
+PowerShell, terminal do backend Node/coletor:
 
 ```powershell
 $env:GOOGLE_SERVICE_ACCOUNT_FILE="$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
@@ -61,19 +75,33 @@ $env:NODE_ENV="development"
 npm run backend
 ```
 
-Segundo terminal, frontend:
+Segundo terminal, Flask:
 
-```bash
-npm run start
+```powershell
+$env:FLASK_HOST="127.0.0.1"
+$env:FLASK_PORT="5000"
+$env:FLASK_DEBUG="false"
+.venv\Scripts\python.exe run_flask.py
+```
+
+Para executar os testes sem chamar o GA4 real:
+
+```powershell
+$env:GOOGLE_SERVICE_ACCOUNT_FILE=$null
+$env:GOOGLE_SERVICE_ACCOUNT_JSON=$null
+.venv\Scripts\python.exe -m pytest -q
+npm test
+npm run test:syntax
 ```
 
 Abrir:
 
 ```text
-http://localhost:3000/dashboard
+http://localhost:5000/dashboard
+http://localhost:5000/configuracao
 ```
 
-O uso de `localhost` é importante no desenvolvimento porque a origem permitida do backend local é `http://localhost:3000`.
+O uso de `localhost` é importante no desenvolvimento porque a origem permitida do backend local é `http://localhost:3000` quando o frontend Node for usado.
 
 ## Container
 
@@ -83,14 +111,15 @@ Não atualizar o container sem autorização explícita.
 
 ## Próximas etapas
 
-1. Validar visualmente `autores.html` com o relatório histórico real.
-2. Integrar a branch em `develop` somente após validação local.
-3. Depois da homologação, promover `develop` para `master` e só então atualizar o container.
-4. Remover código OAuth legado e restringir a regra sudo temporária do deploy.
+1. Continuar a migração dos relatórios históricos GA4 restantes.
+2. Migrar e revisar o controle de quota no Flask.
+3. Migrar o worker/coletor realtime para Flask, mantendo o Node como transição.
+4. Migrar retenção e backup do SQLite.
+5. Validar múltiplos ciclos do worker sem duplicação.
+6. Só depois do corte completo, arquivar o runtime Node legado.
+7. Não atualizar o container sem autorização explícita e validação visual.
 
-As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local e do dashboard realtime foram concluídas em 9 de novembro de 2026.
-Títulos recentes sem URL foram investigados: o título realtime testado não teve correspondência exata no relatório histórico, portanto o sistema mantém a URL indisponível sem fabricar caminho; a sincronização periódica poderá atualizar o cache depois do processamento do GA4.
-O Ranking de Autores foi ajustado para filtrar autores pelas matérias cuja `customEvent:published_date` pertence ao período selecionado; no mês atual, o teste visual passou de 308 para 15 autores.
+As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local, do dashboard realtime, do login administrativo e do cache histórico foram concluídas em 9 de novembro de 2026.
 
 ## Regra de trabalho
 
