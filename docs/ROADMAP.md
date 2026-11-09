@@ -63,11 +63,12 @@ O ranking realtime existente está funcionando com snapshots do backend. A branc
 
 ## Próxima etapa imediata
 
-- Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
-- Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
-- Validar o fallback de URL com um título que exista no relatório histórico, mas não no cache enriquecido.
 - Remover código morto do fluxo OAuth legado depois da homologação.
 - Restringir a regra sudo temporária criada para o usuário de deploy.
+
+Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou 392 dimensões e 114.506 registros; as dimensões técnicas de categoria, autor e publicação retornaram dados; o dashboard carregou dados realtime reais; o coletor manteve 500 snapshots; o Histórico Local foi confirmado após múltiplos ciclos; e o fallback retornou `/page/3445/` para `Página Inicial`.
+
+A investigação dos títulos recentes sem URL mostrou que o título exibido no realtime não aparece com correspondência exata no relatório histórico de 30 dias. O fallback está correto ao retornar metadados indisponíveis, pois não deve criar uma URL aproximada. A sincronização agendada do cache continua sendo a forma de capturar a matéria quando o GA4 histórico passar a retorná-la.
 
 ## Backend e coleta
 

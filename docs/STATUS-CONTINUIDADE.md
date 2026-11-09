@@ -83,13 +83,12 @@ Não atualizar o container sem autorização explícita.
 
 ## Próximas etapas
 
-1. Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
-2. Validar a aba `Histórico Local` após múltiplos ciclos.
-3. Testar o fallback com um título que exista no relatório histórico, mas não no cache enriquecido.
-4. Revisar o motivo pelo qual títulos muito recentes ainda não aparecem no relatório histórico do GA4.
-5. Integrar a branch em `develop` somente após validação local.
-6. Depois da homologação, promover `develop` para `master` e só então atualizar o container.
-7. Remover código OAuth legado e restringir a regra sudo temporária do deploy.
+1. Integrar a branch em `develop` somente após validação local.
+2. Depois da homologação, promover `develop` para `master` e só então atualizar o container.
+3. Remover código OAuth legado e restringir a regra sudo temporária do deploy.
+
+As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local e do dashboard realtime foram concluídas em 9 de novembro de 2026.
+Títulos recentes sem URL foram investigados: o título realtime testado não teve correspondência exata no relatório histórico, portanto o sistema mantém a URL indisponível sem fabricar caminho; a sincronização periódica poderá atualizar o cache depois do processamento do GA4.
 
 ## Regra de trabalho
 

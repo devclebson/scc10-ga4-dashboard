@@ -56,6 +56,22 @@ A branch `fix/remover-other-ranking` foi validada localmente com Service Account
 - `(other)` não apareceu no ranking;
 - a credencial foi lida de `C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json`, fora do Git.
 
+## Validação visual e histórica — 9 de novembro de 2026
+
+- `ranking-teste.html` carregou 392 dimensões da propriedade;
+- relatório histórico retornou 114.506 registros;
+- `customEvent:categories`, `customEvent:author` e `customEvent:published_date` retornaram valores;
+- dashboard carregou 300 leitores em 30 minutos, 446 visualizações e 57 matérias ativas;
+- dashboard exibiu status `Online (30s)`;
+- endpoint de snapshots retornou 500 coletas armazenadas;
+- Histórico Local confirmado após múltiplos ciclos, sem duplicação visual dos snapshots;
+- fallback de URL retornou `/page/3445/` para o título `Página Inicial`;
+- título sem correspondência histórica permaneceu sem URL, sem fabricação de caminho.
+
+### Investigação de títulos recentes sem URL
+
+O título `Fim da idade mínima para aposentadoria especial: veja quem tem direito e como pedir ao INSS` apareceu no realtime, mas não apareceu no relatório histórico executado em `ranking-teste.html` nem na consulta exata do fallback. O comportamento atual é esperado: o sistema mantém a matéria visível e informa que os metadados históricos estão indisponíveis, em vez de fabricar um caminho. A sincronização automática do cache a cada 15 minutos poderá preencher o caminho quando o relatório histórico do GA4 processar ou retornar o título.
+
 Para testar o login administrativo, configure temporariamente no processo do backend:
 
 ```powershell
