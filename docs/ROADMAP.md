@@ -85,7 +85,8 @@ Ranking de autores iniciado em `autores.html`: período mês atual, pódio, rank
 - Dashboard realtime migrado para o template Flask: cards de leitores/visualizações, notícias mais lidas, canais do dia e série por minuto.
 - Ranking editorial migrado para `/ranking`, com rota `/api/ranking`, limite Top-N e tabela baseada no snapshot mais recente.
 - Ranking de autores migrado para `/autores`, com rota `/api/autores`, filtros Hoje/7 dias/Mês atual/90 dias e pódio visual.
-- A versão Flask do ranking de autores usa o cache local `articles`, agrupando autores por data editorial e títulos distintos.
+- Análise individual migrada para `/materias/<id>`, com rota `/api/materias/<id>`, metadados da matéria e fallback realtime do snapshot local.
+- A análise Flask informa explicitamente que as origens históricas ainda aguardam o serviço GA4 Python.
 - O serviço Flask resolve o perfil e a foto dos três primeiros pelo HTML público de matéria/página de autor do SCC10, sem API WordPress, e grava cache em `author_profiles` por 24 horas.
 - O pódio usa iniciais automaticamente quando a imagem externa falha ou o portal bloqueia o acesso.
 - Atualização manual e automática a cada 30 segundos implementadas na tela Flask.

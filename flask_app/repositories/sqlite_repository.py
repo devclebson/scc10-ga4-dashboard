@@ -144,6 +144,47 @@ class SQLiteRepository:
             author['profile'] = profiles.get(author['author'], {'profileUrl': None, 'imageUrl': None, 'status': 'not-requested'})
         return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': authors}
 
+    def article_detail(self, article_id: int):
+        if not self.database_path.exists():
+            return None
+        with self.connect() as connection:
+            article = connection.execute(
+                '''SELECT id, property_id, title, page_path, category, author,
+                          published_at, historical_views
+                   FROM articles WHERE id = ? LIMIT 1''',
+                (article_id,),
+            ).fetchone()
+        if not article:
+            return None
+        latest = self.latest_snapshots(article['property_id'], limit=1)
+        realtime = None
+        if latest:
+            with self.connect() as connection:
+                payload_json = connection.execute(
+                    'SELECT payload_json FROM realtime_snapshots WHERE id = ?', (latest[0]['id'],)
+                ).fetchone()[0]
+            try:
+                import json
+                payload = json.loads(payload_json or '{}')
+                realtime_row = next(
+                    (row for row in payload.get('topPages', []) if row.get('title') == article['title']),
+                    None,
+                )
+                if realtime_row:
+                    realtime = {
+                        'capturedAt': latest[0]['captured_at'],
+                        'users': int(realtime_row.get('users', 0)),
+                        'views': int(realtime_row.get('views', 0)),
+                    }
+            except (TypeError, ValueError):
+                realtime = None
+        return {
+            'article': dict(article),
+            'realtime': realtime,
+            'traffic': [],
+            'trafficStatus': 'pending-flask-ga4-service',
+        }
+
     def _author_profiles(self, authors):
         profiles = {}
         now = datetime.now(timezone.utc)

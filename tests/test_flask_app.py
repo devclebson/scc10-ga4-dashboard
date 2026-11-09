@@ -14,12 +14,12 @@ def test_routes_and_existing_sqlite(tmp_path):
         );
         CREATE TABLE app_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT);
         CREATE TABLE articles (
-          id INTEGER PRIMARY KEY, property_id TEXT, title TEXT, author TEXT,
+          id INTEGER PRIMARY KEY, property_id TEXT, title TEXT, category TEXT, author TEXT,
           historical_views INTEGER, published_at TEXT, page_path TEXT
         );
         INSERT INTO realtime_snapshots VALUES (1, '123', '2026-11-09T12:00:00Z', 4, 9, 20, 3, '{"topPages": [{"title": "Teste", "users": 2, "views": 4}], "channelsToday": [], "minuteSeries": []}');
         INSERT INTO app_settings VALUES ('propertyId', '123');
-        INSERT INTO articles VALUES (1, '123', 'Teste', 'Autora Teste', 7, '2026-11-09', '/teste/');
+        INSERT INTO articles VALUES (1, '123', 'Teste', 'Categoria', 'Autora Teste', 7, '2026-11-09', '/teste/');
     ''')
     connection.commit()
     connection.close()
@@ -44,3 +44,6 @@ def test_routes_and_existing_sqlite(tmp_path):
     authors = client.get('/api/autores?period=month').get_json()
     assert authors['authors'][0]['author'] == 'Autora Teste'
     assert authors['authors'][0]['publications'] == 1
+    detail = client.get('/api/materias/1').get_json()
+    assert detail['article']['title'] == 'Teste'
+    assert detail['trafficStatus'] == 'pending-flask-ga4-service'

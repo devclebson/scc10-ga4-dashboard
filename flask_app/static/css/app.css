@@ -17,6 +17,8 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 48px); }
 .card span { color: #71809e; font-size: 13px; }
 .card strong { font-size: 24px; }
 .empty-state { padding: 30px; color: #667694; }
+.hidden { display: none !important; }
+.error { color: #b42318; }
 .dashboard-hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
 .dashboard-actions { display: flex; gap: 8px; }
 .fullscreen-exit { display: none; position: fixed; z-index: 10; top: 16px; right: 16px; border: 0; border-radius: 8px; padding: 9px 12px; background: #15378fcc; color: white; cursor: pointer; }

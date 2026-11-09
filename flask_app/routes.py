@@ -69,6 +69,15 @@ def authors_data():
     return jsonify(repository.authors_data(current_app.config.get('PROPERTY_ID'), period))
 
 
+@api.get('/materias/<int:article_id>')
+def article_detail(article_id):
+    repository = current_app.extensions['repository']
+    detail = repository.article_detail(article_id)
+    if not detail:
+        return jsonify({'error': 'Matéria não encontrada.'}), 404
+    return jsonify(detail)
+
+
 @api.get('/config')
 def config():
     repository = current_app.extensions['repository']
