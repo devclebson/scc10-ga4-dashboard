@@ -11,7 +11,7 @@ const ARTICLE_DIMENSIONS = [
 
 const ARTICLE_PATH_DIMENSIONS = ['pageTitle', 'pagePath'];
 
-function normalizeTitle(value) {
+export function normalizeTitle(value) {
   return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

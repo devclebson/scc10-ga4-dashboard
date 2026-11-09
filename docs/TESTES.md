@@ -67,10 +67,11 @@ A branch `fix/remover-other-ranking` foi validada localmente com Service Account
 - Histórico Local confirmado após múltiplos ciclos, sem duplicação visual dos snapshots;
 - fallback de URL retornou `/page/3445/` para o título `Página Inicial`;
 - título sem correspondência histórica permaneceu sem URL, sem fabricação de caminho.
+- fallback do sitemap retornou caminhos reais para duas matérias recentes sem correspondência histórica;
 
 ### Investigação de títulos recentes sem URL
 
-O título `Fim da idade mínima para aposentadoria especial: veja quem tem direito e como pedir ao INSS` apareceu no realtime, mas não apareceu no relatório histórico executado em `ranking-teste.html` nem na consulta exata do fallback. O comportamento atual é esperado: o sistema mantém a matéria visível e informa que os metadados históricos estão indisponíveis, em vez de fabricar um caminho. A sincronização automática do cache a cada 15 minutos poderá preencher o caminho quando o relatório histórico do GA4 processar ou retornar o título.
+O título `Estudante de 16 anos morre após passar mal durante o primeiro dia de prova do Enem 2026` e o título `Primavera com cara de inverno: cidade de SC registra primeira geada de novembro com -1,5°C` não tiveram correspondência histórica no momento do teste. O sitemap retornou, respectivamente, `/cotidiano/seguranca/estudante-de-16-anos-morre-apos-passar-mal-durante-o-primeiro-dia-de-prova-do-enem-2026/` e `/cotidiano/primavera-com-cara-de-inverno-cidade-de-sc-registra-primeira-geada-de-novembro-com-15c/`. Os caminhos foram lidos do sitemap, não gerados pelo sistema.
 
 Para testar o login administrativo, configure temporariamente no processo do backend:
 

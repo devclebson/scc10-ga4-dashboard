@@ -1,11 +1,12 @@
 import { createServer } from 'node:http';
-import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
+import { getSetting, getSnapshots, saveSnapshot, setSetting, upsertArticle } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
-import { enrichArticle, getArticleDetail, syncArticleMetadata, syncMissingArticlePaths } from './services/article-metadata.js';
+import { enrichArticle, getArticleDetail, normalizeTitle, syncArticleMetadata, syncMissingArticlePaths } from './services/article-metadata.js';
 import { createAllowedOrigins } from './services/allowed-origins.js';
 import { createReportCache } from './services/report-cache.js';
+import { resolveArticlePathsFromSitemap } from './services/sitemap.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -247,7 +248,22 @@ const server = createServer(async (req, res) => {
       const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
       const titles = Array.isArray(body.titles) ? body.titles.slice(0, 100) : [];
       let articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
-      const missingTitles = titles.filter(title => !articles[title]);
+      let missingTitles = titles.filter(title => !articles[title]);
+      if (missingTitles.length) {
+        try {
+          const sitemapPaths = await resolveArticlePathsFromSitemap(missingTitles);
+          for (const title of missingTitles) {
+            const pagePath = sitemapPaths[title];
+            if (pagePath) {
+              upsertArticle({ propertyId, title, normalizedTitle: normalizeTitle(title), pagePath });
+            }
+          }
+          articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+          missingTitles = titles.filter(title => !articles[title]);
+        } catch (error) {
+          console.warn(`Sitemap lookup failed: ${error.message}`);
+        }
+      }
       if (missingTitles.length && isServiceAccountConfigured()) {
         assertPublicGa4Budget();
         await syncMissingArticlePaths(propertyId, missingTitles);
