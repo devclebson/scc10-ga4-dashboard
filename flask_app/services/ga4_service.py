@@ -5,9 +5,12 @@ from urllib.request import Request, urlopen
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2 import service_account
 
+from .report_cache import ReportCache
+
 DATA_API_BASE = 'https://analyticsdata.googleapis.com/v1beta/properties'
 SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
 _cached_credentials = None
+_article_traffic_cache = ReportCache(ttl_seconds=300, max_entries=128)
 
 
 def _get_credentials():
@@ -32,7 +35,7 @@ def configured():
     return bool(os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON') or os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE'))
 
 
-def run_article_traffic(property_id, page_path, start_date='30daysAgo'):
+def _run_article_traffic_uncached(property_id, page_path, start_date='30daysAgo'):
     credentials = _get_credentials()
     if not credentials:
         raise RuntimeError('Service Account não configurada no Flask.')
@@ -63,3 +66,21 @@ def run_article_traffic(property_id, page_path, start_date='30daysAgo'):
     for row in rows:
         row['pct'] = round((row['views'] / total_views) * 100, 1) if total_views else 0
     return {'rows': rows, 'totalViews': total_views, 'startDate': start_date, 'endDate': 'today'}
+
+
+def run_article_traffic(property_id, page_path, start_date='30daysAgo', force_refresh=False):
+    key = {
+        'report': 'article-traffic',
+        'propertyId': str(property_id),
+        'pagePath': page_path,
+        'startDate': start_date,
+    }
+    return _article_traffic_cache.get(
+        key,
+        lambda: _run_article_traffic_uncached(property_id, page_path, start_date),
+        force_refresh=force_refresh,
+    )
+
+
+def article_traffic_cache_stats():
+    return _article_traffic_cache.stats()

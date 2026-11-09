@@ -49,6 +49,10 @@ O login administrativo oficial da nova camada usa hash em `FLASK_ADMIN_PASSWORD_
 
 O Flask calcula estado, idade do snapshot, quantidade de snapshots e métricas da última coleta a partir de `realtime_snapshots`. O Node registra os eventos de execução em `collector_runs`; o Flask mostra duração, sucesso e erro quando a tabela existe. Bancos antigos sem essa tabela permanecem com `lastErrorStatus` igual a `not-recorded`.
 
+## Cache de relatórios Flask
+
+O tráfego histórico por matéria usa cache em memória de cinco minutos, isolado por propriedade, caminho e período. Chamadas simultâneas idênticas são coalescidas; erros não são armazenados. O cache é temporário e será ampliado somente depois da migração dos demais relatórios e da revisão do orçamento de quota.
+
 ## Versionamento exibido
 
 O dashboard usa versionamento semântico no `package.json` e exibe a versão atual nas telas principais. Toda atualização publicada no container deve alterar o número da versão, executar os testes e registrar o commit implantado.

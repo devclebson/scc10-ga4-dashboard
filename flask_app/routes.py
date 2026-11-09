@@ -7,7 +7,7 @@ import secrets
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from .services.ga4_service import configured as ga4_configured, run_article_traffic
+from .services.ga4_service import article_traffic_cache_stats, configured as ga4_configured, run_article_traffic
 
 pages = Blueprint('pages', __name__)
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -247,5 +247,6 @@ def config_diagnostics():
         'ga4Configured': ga4_configured(),
         'service': 'scc10-flask',
         'collector': repository.collector_diagnostics(property_id, interval_seconds),
+        'historicalReportCache': article_traffic_cache_stats(),
     })
     return jsonify(diagnostics)
