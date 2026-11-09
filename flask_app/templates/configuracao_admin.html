@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Administração | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero"><p class="eyebrow">Administração protegida</p><h1>Configurações</h1><p>Altere somente as configurações operacionais não sensíveis do dashboard.</p></section>
+<section class="configuration-state">
+  <div class="panel-heading">
+    <div><h2>Configuração operacional</h2><p class="configuration-description">Os valores são persistidos no SQLite. Credenciais e chaves continuam fora desta tela.</p></div>
+    <form method="post" action="{{ url_for('pages.configuracao_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="button button-secondary" type="submit">Sair</button></form>
+  </div>
+  <form id="configuration-form" class="configuration-form">
+    <label for="property-id">Propriedade GA4</label>
+    <input id="property-id" name="propertyId" inputmode="numeric" pattern="[0-9]+" required value="{{ configuration.propertyId or '' }}">
+
+    <label for="default-date-range">Período padrão</label>
+    <select id="default-date-range" name="defaultDateRange">
+      <option value="7" {% if configuration.defaultDateRange == '7' %}selected{% endif %}>Últimos 7 dias</option>
+      <option value="today" {% if configuration.defaultDateRange == 'today' %}selected{% endif %}>Hoje</option>
+      <option value="30" {% if configuration.defaultDateRange == '30' %}selected{% endif %}>Últimos 30 dias</option>
+      <option value="90" {% if configuration.defaultDateRange == '90' %}selected{% endif %}>Últimos 90 dias</option>
+      <option value="365" {% if configuration.defaultDateRange == '365' %}selected{% endif %}>Últimos 12 meses</option>
+    </select>
+
+    <label class="admin-check"><input id="compare-enabled" name="compareEnabled" type="checkbox" {% if configuration.compareEnabled %}checked{% endif %}> Comparar com o período anterior</label>
+    <button class="button" type="submit">Salvar configuração</button>
+    <p id="configuration-feedback" class="configuration-description" role="status"></p>
+  </form>
+</section>
+<script>
+const form = document.querySelector('#configuration-form');
+const feedback = document.querySelector('#configuration-feedback');
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = form.querySelector('button[type="submit"]');
+  button.disabled = true;
+  feedback.textContent = 'Salvando...';
+  try {
+    const response = await fetch('{{ url_for("api.save_admin_config") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token }}'},
+      body: JSON.stringify({
+        propertyId: document.querySelector('#property-id').value.trim(),
+        defaultDateRange: document.querySelector('#default-date-range').value,
+        compareEnabled: document.querySelector('#compare-enabled').checked
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível salvar.');
+    feedback.textContent = 'Configuração salva com sucesso.';
+  } catch (error) {
+    feedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+{% endblock %}

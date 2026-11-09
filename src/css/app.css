@@ -515,6 +515,78 @@
       margin-right: 5px;
       color: var(--text-muted);
     }
+    .article-detail-live {
+      margin: 0 0 20px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: #ecfdf5;
+      color: #047857;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .authors-page {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+    .authors-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .authors-header h1 { margin: 4px 0 8px; font-size: 24px; }
+    .authors-controls {
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .authors-controls label { display: grid; gap: 6px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+    .authors-controls select { min-width: 180px; }
+    .authors-podium {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 0 0 20px;
+    }
+    .author-podium-card {
+      display: grid;
+      gap: 5px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .author-podium-card strong { font-size: 18px; }
+    .author-podium-card strong a { color: inherit; text-decoration: none; }
+    .author-podium-card strong a:hover { text-decoration: underline; }
+    .author-avatar {
+      width: 88px;
+      height: 88px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid var(--border);
+      background: #eff6ff;
+    }
+    .author-avatar-fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .author-podium-card span:not(.author-medal):not(.author-avatar), .author-podium-card small { color: var(--text-muted); }
+    .author-medal { font-size: 25px; }
+    .authors-table-panel { padding: 20px; }
+    .authors-table a { color: var(--primary); text-decoration: none; }
+    .authors-table a:hover { text-decoration: underline; }
+    .authors-table td { vertical-align: top; }
+    @media (max-width: 760px) {
+      .authors-header, .authors-controls { display: grid; }
+      .authors-podium { grid-template-columns: 1fr; }
+    }
     .article-detail-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);

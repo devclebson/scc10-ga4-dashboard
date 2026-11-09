@@ -34,9 +34,9 @@ test('origem pública exata é aceita; valores inválidos ou outras origens são
 test('build estático publica somente recursos permitidos', () => {
   const root = mkdtempSync(join(process.env.TMPDIR || tmpdir(), 'scc10-static-test-'));
   const files = [
-    'index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'ranking.html', 'materia.html',
+    'index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'ranking.html', 'materia.html', 'autores.html',
     'src/css/app.css', 'src/js/api-base.js', 'src/js/app.js', 'src/js/config-app.js',
-    'src/js/materia.js', 'src/js/ranking-test.js', 'src/js/ranking-app.js', 'src/js/dashboard/ranking.js', 'src/js/state.js',
+    'src/js/materia.js', 'src/js/autores.js', 'src/js/authors-data.js', 'src/js/ranking-test.js', 'src/js/ranking-app.js', 'src/js/dashboard/ranking.js', 'src/js/state.js',
     'src/js/services/analytics-api.js', 'src/js/services/auth.js', 'src/js/services/storage.js',
     'src/js/utils/formatters.js', 'assets/images/scc10-logo.png', 'assets/images/scc10-mark.jpg',
     'node_modules/chart.js/dist/chart.umd.js', 'node_modules/d3/dist/d3.min.js',

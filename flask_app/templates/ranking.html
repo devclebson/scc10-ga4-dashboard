@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Ranking editorial | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero"><div><p class="eyebrow">Relatórios realtime</p><h1>Ranking editorial</h1><p>Notícias ordenadas pelas visualizações do snapshot mais recente.</p></div><div class="ranking-actions"><label for="limit">Exibir</label><select id="limit"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
+<div id="status" class="status">Carregando ranking...</div>
+<section class="panel"><div class="panel-heading"><h2>Notícias mais lidas</h2><span id="total"></span></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>#</th><th>Matéria</th><th>Leitores</th><th>Visualizações</th></tr></thead><tbody id="ranking-body"></tbody></table></div></section>
+<script>
+const endpoint = '{{ url_for("api.ranking_data") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+async function load() {
+  const status = document.querySelector('#status'); status.textContent = 'Atualizando ranking...';
+  try {
+    const limit = document.querySelector('#limit').value;
+    const response = await fetch(`${endpoint}?limit=${limit}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Não foi possível carregar o ranking.');
+    const data = await response.json();
+    document.querySelector('#total').textContent = `${number(data.totalViews)} visualizações nas matérias exibidas`;
+    document.querySelector('#ranking-body').innerHTML = data.articles.map((article, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><strong>${escapeHtml(article.title)}</strong></td><td>${number(article.users)}</td><td><strong>${number(article.views)}</strong></td></tr>`).join('') || '<tr><td colspan="4">Nenhuma matéria disponível.</td></tr>';
+    status.textContent = `Snapshot atualizado em ${data.capturedAt ? new Date(data.capturedAt).toLocaleString('pt-BR') : '--'}`;
+  } catch (error) { status.textContent = error.message; }
+}
+document.querySelector('#refresh').addEventListener('click', load);
+document.querySelector('#limit').addEventListener('change', load);
+document.querySelector('#fullscreen').addEventListener('click', async () => {
+  try { await document.documentElement.requestFullscreen(); }
+  catch { document.body.classList.add('fullscreen-active'); }
+});
+document.querySelector('#fullscreen-exit').addEventListener('click', async () => {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  document.body.classList.remove('fullscreen-active');
+});
+document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fullscreen-active', Boolean(document.fullscreenElement)));
+load();
+setInterval(load, 30000);
+</script>
+{% endblock %}
