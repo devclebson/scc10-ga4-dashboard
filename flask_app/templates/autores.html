@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Ranking de autores | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero dashboard-hero"><div><p class="eyebrow">Relatórios editoriais</p><h1>Ranking de autores</h1><p>Autores agrupados pelas matérias publicadas no período selecionado.</p></div><div class="ranking-actions"><label for="period">Período</label><select id="period"><option value="today">Hoje</option><option value="7days">Últimos 7 dias</option><option value="month" selected>Mês atual</option><option value="90days">Últimos 90 dias</option></select><button id="refresh" class="button">Atualizar</button></div></section>
+<section class="hero dashboard-hero"><div><p class="eyebrow">Relatórios editoriais</p><h1>Ranking de autores</h1><p>Autores agrupados pelas matérias publicadas no período selecionado.</p></div><div class="ranking-actions"><label for="period">Período</label><select id="period"><option value="today">Hoje</option><option value="7days">Últimos 7 dias</option><option value="month" selected>Mês atual</option><option value="90days">Últimos 90 dias</option></select><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
 <div id="status" class="status">Carregando autores...</div>
 <section id="podium" class="author-podium"></section>
 <section class="panel"><div class="panel-heading"><h2>Ranking geral</h2><span id="total"></span></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>#</th><th>Autor</th><th>Publicações</th><th>Visualizações</th><th>Melhor matéria</th></tr></thead><tbody id="authors-body"></tbody></table></div></section>
@@ -38,6 +39,15 @@ async function load() {
 }
 document.querySelector('#refresh').addEventListener('click', load);
 document.querySelector('#period').addEventListener('change', load);
+document.querySelector('#fullscreen').addEventListener('click', async () => {
+  try { await document.documentElement.requestFullscreen(); }
+  catch { document.body.classList.add('fullscreen-active'); }
+});
+document.querySelector('#fullscreen-exit').addEventListener('click', async () => {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  document.body.classList.remove('fullscreen-active');
+});
+document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fullscreen-active', Boolean(document.fullscreenElement)));
 load();
 </script>
 {% endblock %}
