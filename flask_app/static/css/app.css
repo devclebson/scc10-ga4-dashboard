@@ -23,6 +23,7 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 48px); }
 .fullscreen-active .topbar { display: none; }
 .fullscreen-active .container { width: min(1600px, 96vw); padding-top: 28px; }
 .fullscreen-active .fullscreen-exit { display: block; opacity: .15; }
+.fullscreen-active #fullscreen { display: none; }
 .fullscreen-active .fullscreen-exit:hover, .fullscreen-active .fullscreen-exit:focus { opacity: 1; }
 .fullscreen-active .dashboard-hero { padding-right: 80px; }
 .button { border: 0; border-radius: 10px; padding: 12px 18px; background: #2468c9; color: white; font-weight: 700; cursor: pointer; }
