@@ -47,8 +47,9 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 48px); }
 .ranking-table { width: 100%; border-collapse: collapse; }
 .ranking-table th, .ranking-table td { padding: 14px 12px; text-align: left; border-bottom: 1px solid #edf0f6; }
 .ranking-table th { color: #71809e; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.ranking-table th:first-child, .ranking-table td:first-child { width: 58px; min-width: 58px; padding-left: 8px; padding-right: 8px; text-align: center; vertical-align: middle; }
 .ranking-table th:nth-child(n+3), .ranking-table td:nth-child(n+3) { text-align: right; }
-.ranking-table .rank-number { display: inline-grid; }
+.ranking-table .rank-number { display: grid; margin: 0 auto; }
 .ranking-table td:nth-child(2) { min-width: 420px; }
 .author-podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 20px 0; }
 .author-podium-card { position: relative; display: grid; justify-items: center; gap: 10px; padding: 24px 16px; text-align: center; background: white; border: 1px solid #e2e8f3; border-radius: 16px; box-shadow: 0 8px 24px #193b7110; }

@@ -26,7 +26,7 @@ function bindImageFallback() {
 function render(data) {
   const authors = data.authors || [];
   document.querySelector('#total').textContent = `${authors.length} autores · ${data.startDate} a ${data.endDate}`;
-  document.querySelector('#podium').innerHTML = authors.slice(0, 3).map((author, index) => `<article class="author-podium-card podium-${index + 1}">${avatar(author, index)}<span>${number(author.views)} visualizações</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`).join('') || '<div class="empty-state">Nenhum autor publicou no período.</div>';
+  document.querySelector('#podium').innerHTML = authors.slice(0, 3).map((author, index) => `<article class="author-podium-card podium-${index + 1}">${avatar(author, index)}<span>${number(author.views)} visualizaç${author.views === 1 ? 'ão' : 'ões'}</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`).join('') || '<div class="empty-state">Nenhum autor publicou no período.</div>';
   bindImageFallback();
   document.querySelector('#authors-body').innerHTML = authors.map((author, index) => `<tr><td class="rank-number">${index + 1}</td><td><strong>${escapeHtml(author.author)}</strong></td><td>${author.publications}</td><td><strong>${number(author.views)}</strong></td><td>${escapeHtml(author.topArticle?.title || '--')}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum autor encontrado.</td></tr>';
   document.querySelector('#status').textContent = 'Dados carregados do cache local de matérias. Usuários e visualizações são métricas históricas armazenadas por matéria.';
