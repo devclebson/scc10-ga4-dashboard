@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Ranking de autores | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero"><div><p class="eyebrow">Relatórios editoriais</p><h1>Ranking de autores</h1><p>Autores agrupados pelas matérias publicadas no período selecionado.</p></div><div class="ranking-actions"><label for="period">Período</label><select id="period"><option value="today">Hoje</option><option value="7days">Últimos 7 dias</option><option value="month" selected>Mês atual</option><option value="90days">Últimos 90 dias</option></select><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
+<div id="status" class="status">Carregando autores...</div>
+<section id="podium" class="author-podium"></section>
+<section class="panel"><div class="panel-heading"><h2>Ranking geral</h2><span id="total"></span></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>#</th><th>Autor</th><th>Publicações</th><th>Visualizações</th><th>Melhor matéria</th></tr></thead><tbody id="authors-body"></tbody></table></div></section>
+<script>
+const endpoint = '{{ url_for("api.authors_data") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+function avatar(author, index) {
+  const image = author.profile?.imageUrl ? `<img class="author-avatar" src="${escapeHtml(author.profile.imageUrl)}" alt="Foto de ${escapeHtml(author.author)}">` : `<div class="author-avatar author-avatar-fallback">${escapeHtml(initials(author.author))}</div>`;
+  const name = author.profile?.profileUrl ? `<a href="${escapeHtml(author.profile.profileUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(author.author)}</a>` : escapeHtml(author.author);
+  return `${image}<span class="author-medal">${['🥇','🥈','🥉'][index] || ''}</span><strong>${name}</strong>`;
+}
+function bindImageFallback() {
+  document.querySelectorAll('.author-avatar img').forEach(image => image.addEventListener('error', () => {
+    const fallback = document.createElement('div');
+    fallback.className = 'author-avatar author-avatar-fallback';
+    fallback.textContent = initials(image.alt.replace(/^Foto de /, ''));
+    image.replaceWith(fallback);
+  }, { once: true }));
+}
+function render(data) {
+  const authors = data.authors || [];
+  document.querySelector('#total').textContent = `${authors.length} autores · ${data.startDate} a ${data.endDate}`;
+  document.querySelector('#podium').innerHTML = authors.slice(0, 3).map((author, index) => `<article class="author-podium-card podium-${index + 1}">${avatar(author, index)}<span>${number(author.views)} visualizaç${author.views === 1 ? 'ão' : 'ões'}</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`).join('') || '<div class="empty-state">Nenhum autor publicou no período.</div>';
+  bindImageFallback();
+  document.querySelector('#authors-body').innerHTML = authors.map((author, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><strong>${escapeHtml(author.author)}</strong></td><td>${author.publications}</td><td><strong>${number(author.views)}</strong></td><td>${escapeHtml(author.topArticle?.title || '--')}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum autor encontrado.</td></tr>';
+  document.querySelector('#status').textContent = 'Dados carregados do cache local de matérias. Usuários e visualizações são métricas históricas armazenadas por matéria.';
+}
+async function load() {
+  const status = document.querySelector('#status'); status.textContent = 'Atualizando autores...';
+  try { const response = await fetch(`${endpoint}?period=${document.querySelector('#period').value}`, { cache: 'no-store' }); if (!response.ok) throw new Error('Não foi possível carregar os autores.'); render(await response.json()); }
+  catch (error) { status.textContent = error.message; }
+}
+document.querySelector('#refresh').addEventListener('click', load);
+document.querySelector('#period').addEventListener('change', load);
+document.querySelector('#fullscreen').addEventListener('click', async () => {
+  try { await document.documentElement.requestFullscreen(); }
+  catch { document.body.classList.add('fullscreen-active'); }
+});
+document.querySelector('#fullscreen-exit').addEventListener('click', async () => {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  document.body.classList.remove('fullscreen-active');
+});
+document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fullscreen-active', Boolean(document.fullscreenElement)));
+load();
+</script>
+{% endblock %}

@@ -1,4 +1,4 @@
-import { upsertArticle, findArticle, findArticleByPath } from '../db.js';
+import { upsertArticle, findArticle, findArticleByPath, getSnapshots } from '../db.js';
 import { requestGa4Report } from './ga4-client.js';
 
 const ARTICLE_DIMENSIONS = [
@@ -9,7 +9,9 @@ const ARTICLE_DIMENSIONS = [
   'customEvent:published_date'
 ];
 
-function normalizeTitle(value) {
+const ARTICLE_PATH_DIMENSIONS = ['pageTitle', 'pagePath'];
+
+export function normalizeTitle(value) {
   return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -20,6 +22,30 @@ function normalizeTitle(value) {
 
 function valueAt(row, index) {
   return row.dimensionValues?.[index]?.value || '';
+}
+
+function normalizePropertyId(propertyId) {
+  return String(propertyId).replace(/^properties\//, '');
+}
+
+export function buildArticlePathLookupPayload(titles) {
+  const uniqueTitles = [...new Set(titles.map(title => String(title || '').trim()).filter(Boolean))];
+  return {
+    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dimensions: ARTICLE_PATH_DIMENSIONS.map(name => ({ name })),
+    metrics: [{ name: 'screenPageViews' }],
+    dimensionFilter: {
+      orGroup: {
+        expressions: uniqueTitles.map(title => ({
+          filter: {
+            fieldName: 'pageTitle',
+            stringFilter: { matchType: 'EXACT', value: title }
+          }
+        }))
+      }
+    },
+    limit: Math.max(uniqueTitles.length, 1)
+  };
 }
 
 export async function syncArticleMetadata(propertyId, startDate = '30daysAgo') {
@@ -44,7 +70,7 @@ export async function syncArticleMetadata(propertyId, startDate = '30daysAgo') {
     const normalizedTitle = normalizeTitle(title);
     if (!title || !normalizedTitle || normalizedTitle === '(not set)') continue;
     upsertArticle({
-      propertyId: String(propertyId).replace(/^properties\//, ''),
+      propertyId: normalizePropertyId(propertyId),
       title,
       normalizedTitle,
       pagePath: valueAt(row, 1),
@@ -58,8 +84,47 @@ export async function syncArticleMetadata(propertyId, startDate = '30daysAgo') {
   return { fetched: result.data.rows?.length || 0, saved };
 }
 
+export async function syncMissingArticlePaths(propertyId, titles) {
+  const uniqueTitles = [...new Set(titles.map(title => String(title || '').trim()).filter(Boolean))];
+  if (!uniqueTitles.length) return { fetched: 0, saved: 0 };
+
+  const result = await requestGa4Report({
+    propertyId,
+    reportType: 'standard',
+    payload: buildArticlePathLookupPayload(uniqueTitles)
+  });
+  if (result.status >= 400 || result.data.error) {
+    throw new Error(result.data.error?.message || 'Falha ao buscar URLs das matérias.');
+  }
+
+  const normalizedPropertyIdValue = normalizePropertyId(propertyId);
+  const returnedTitles = new Set();
+  for (const row of result.data.rows || []) {
+    const title = valueAt(row, 0);
+    const normalizedTitle = normalizeTitle(title);
+    if (!title || !normalizedTitle || normalizedTitle === '(not set)' || normalizedTitle === '(other)') continue;
+    returnedTitles.add(normalizedTitle);
+    upsertArticle({
+      propertyId: normalizedPropertyIdValue,
+      title,
+      normalizedTitle,
+      pagePath: valueAt(row, 1),
+      historicalViews: row.metricValues?.[0]?.value || 0
+    });
+  }
+
+  // Cache negative matches too, preventing a GA4 request every 30 seconds.
+  for (const title of uniqueTitles) {
+    const normalizedTitle = normalizeTitle(title);
+    if (!returnedTitles.has(normalizedTitle)) {
+      upsertArticle({ propertyId: normalizedPropertyIdValue, title, normalizedTitle });
+    }
+  }
+  return { fetched: result.data.rows?.length || 0, saved: returnedTitles.size };
+}
+
 export async function getArticleDetail(propertyId, { title, pagePath, startDate = '30daysAgo' } = {}) {
-  const normalizedPropertyId = String(propertyId).replace(/^properties\//, '');
+  const normalizedPropertyId = normalizePropertyId(propertyId);
   const cached = pagePath
     ? findArticleByPath(normalizedPropertyId, pagePath)
     : findArticle(normalizedPropertyId, normalizeTitle(title));
@@ -87,6 +152,26 @@ export async function getArticleDetail(propertyId, { title, pagePath, startDate 
     throw new Error(result.data.error?.message || 'Falha ao consultar as origens da matéria.');
   }
 
+  const snapshots = getSnapshots({ propertyId: normalizedPropertyId, limit: 1 });
+  const latestSnapshot = snapshots[0];
+  let realtime = null;
+  if (latestSnapshot) {
+    try {
+      const payload = JSON.parse(latestSnapshot.payload_json || '{}');
+      const normalizedTarget = normalizeTitle(title || cached?.title || '');
+      const page = (payload.topPages || []).find(item => normalizeTitle(item.title) === normalizedTarget);
+      if (page) {
+        realtime = {
+          capturedAt: latestSnapshot.captured_at,
+          users: Number(page.users || 0),
+          views: Number(page.views || 0)
+        };
+      }
+    } catch {
+      realtime = null;
+    }
+  }
+
   return {
     article: cached ? {
       title: cached.title,
@@ -96,7 +181,8 @@ export async function getArticleDetail(propertyId, { title, pagePath, startDate 
       publishedAt: cached.published_at,
       historicalViews: cached.historical_views
     } : { title: title || resolvedPath, pagePath: resolvedPath },
-    traffic: result.data.rows || []
+    traffic: result.data.rows || [],
+    realtime
   };
 }
 

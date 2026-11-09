@@ -1,11 +1,13 @@
 import { createServer } from 'node:http';
-import { getSetting, getSnapshots, saveSnapshot, setSetting } from './db.js';
+import { finishCollectorRun, getSetting, getSnapshots, saveSnapshot, setSetting, startCollectorRun, upsertArticle } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
-import { enrichArticle, getArticleDetail, syncArticleMetadata } from './services/article-metadata.js';
+import { enrichArticle, getArticleDetail, normalizeTitle, syncArticleMetadata, syncMissingArticlePaths } from './services/article-metadata.js';
 import { createAllowedOrigins } from './services/allowed-origins.js';
 import { createReportCache } from './services/report-cache.js';
+import { resolveArticlePathsFromSitemap } from './services/sitemap.js';
+import { resolveAuthorProfile } from './services/author-profile.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -246,8 +248,42 @@ const server = createServer(async (req, res) => {
       const body = await readJson(req);
       const propertyId = propertyIdFrom(body.propertyId || applicationConfig().propertyId);
       const titles = Array.isArray(body.titles) ? body.titles.slice(0, 100) : [];
-      const articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+      let articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+      let missingTitles = titles.filter(title => !articles[title]);
+      if (missingTitles.length) {
+        try {
+          const sitemapPaths = await resolveArticlePathsFromSitemap(missingTitles);
+          for (const title of missingTitles) {
+            const pagePath = sitemapPaths[title];
+            if (pagePath) {
+              upsertArticle({ propertyId, title, normalizedTitle: normalizeTitle(title), pagePath });
+            }
+          }
+          articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+          missingTitles = titles.filter(title => !articles[title]);
+        } catch (error) {
+          console.warn(`Sitemap lookup failed: ${error.message}`);
+        }
+      }
+      if (missingTitles.length && isServiceAccountConfigured()) {
+        assertPublicGa4Budget();
+        await syncMissingArticlePaths(propertyId, missingTitles);
+        articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
+      }
       sendJson(res, 200, { articles });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/authors/profiles') {
+      const body = await readJson(req);
+      const authors = Array.isArray(body.authors) ? body.authors.slice(0, 10) : [];
+      const profiles = {};
+      for (const author of authors) {
+        const name = String(author?.name || '').trim();
+        if (!name) continue;
+        profiles[name] = await resolveAuthorProfile(name, author.pagePath || '');
+      }
+      sendJson(res, 200, { profiles });
       return;
     }
 
@@ -369,6 +405,8 @@ async function runScheduledRealtimeSnapshot() {
   if (!propertyId) return;
 
   realtimeSnapshotRunning = true;
+  const runStartedAt = new Date();
+  const collectorRunId = startCollectorRun({ propertyId, startedAt: runStartedAt.toISOString() });
   try {
     const [totalReport, pagesReport, minuteReport] = await Promise.all([
       requestGa4Report({
@@ -414,7 +452,7 @@ async function runScheduledRealtimeSnapshot() {
       users: Number(row.metricValues?.[0]?.value || 0),
       views: Number(row.metricValues?.[1]?.value || 0)
     }));
-    saveSnapshot({
+    const snapshot = saveSnapshot({
       propertyId,
       capturedAt: new Date().toISOString(),
       activeUsers5m: Number(fiveMinuteRow?.metricValues?.[0]?.value || 0),
@@ -427,8 +465,21 @@ async function runScheduledRealtimeSnapshot() {
         minuteSeries
       }
     });
+    finishCollectorRun(collectorRunId, {
+      finishedAt: new Date().toISOString(),
+      status: 'success',
+      durationMs: Date.now() - runStartedAt.getTime(),
+      snapshotId: snapshot.id,
+      rowsCount: pagesData?.rows?.length || 0
+    });
     console.log('Realtime snapshot saved');
   } catch (error) {
+    finishCollectorRun(collectorRunId, {
+      finishedAt: new Date().toISOString(),
+      status: 'error',
+      durationMs: Date.now() - runStartedAt.getTime(),
+      errorMessage: error.message
+    });
     pauseCollectorForQuota(error);
     console.warn(`Realtime snapshot failed: ${error.message}`);
   } finally {

@@ -3,11 +3,11 @@ import { dirname, join, resolve } from 'node:path';
 
 const root = resolve(process.argv[2] || '.');
 const output = join(root, 'dist');
-const pages = ['index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'ranking.html', 'materia.html'];
+const pages = ['index.html', 'dashboard.html', 'configuracao.html', 'ranking-teste.html', 'ranking.html', 'materia.html', 'autores.html'];
 const assets = ['assets/images/scc10-mark.jpg', 'assets/images/scc10-logo.png'];
 const sourceFiles = [
   'src/css/app.css', 'src/js/api-base.js', 'src/js/app.js', 'src/js/config-app.js',
-  'src/js/materia.js', 'src/js/ranking-test.js', 'src/js/ranking-app.js',
+  'src/js/materia.js', 'src/js/autores.js', 'src/js/authors-data.js', 'src/js/ranking-test.js', 'src/js/ranking-app.js',
   'src/js/dashboard/ranking.js', 'src/js/state.js',
   'src/js/services/analytics-api.js', 'src/js/services/auth.js', 'src/js/services/storage.js',
   'src/js/utils/formatters.js'

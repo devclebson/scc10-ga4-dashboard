@@ -23,6 +23,94 @@ curl http://127.0.0.1:3001/api/config
 
 O resultado esperado é `authMode: service-account` e `configured: true`.
 
+## Validação Flask local
+
+Na raiz do projeto, em um terminal separado:
+
+```cmd
+set "FLASK_ADMIN_PASSWORD_HASH=hash-gerado-fora-do-repositorio"
+set "FLASK_SECRET_KEY=chave-gerada-fora-do-repositorio"
+set "GOOGLE_SERVICE_ACCOUNT_FILE=C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json"
+set "SCC10_PROPERTY_ID=309943616"
+set "FLASK_HOST=127.0.0.1"
+set "FLASK_PORT=5000"
+set "FLASK_DEBUG=false"
+.venv\Scripts\python.exe run_flask.py
+```
+
+Abra `http://localhost:5000/configuracao`, entre na administração e verifique:
+
+- carregamento da propriedade atual;
+- seleção do período padrão;
+- comparação habilitada/desabilitada;
+- salvamento com mensagem de sucesso;
+- rejeição de propriedade inválida;
+- alteração sem token CSRF deve retornar `403`;
+- logout e bloqueio após sair;
+- sessão com timestamp expirado deve retornar `401`/redirecionar para login;
+- persistência depois de reiniciar o Flask.
+
+Na tela pública `/configuracao`, o diagnóstico deve mostrar banco, Service Account, propriedade, estado do coletor, intervalo, idade do snapshot, quantidade de snapshots, duração, última execução bem-sucedida e último erro. Bancos antigos sem `collector_runs` devem aparecer honestamente como não registrados.
+
+Testes automatizados da fatia:
+
+```cmd
+.venv\Scripts\python.exe -m pytest -q
+npm test
+npm run test:syntax
+git diff --check
+```
+
+## Homologação do container
+
+Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
+`34543ec0252e864557b3cd095eb1f53cad4b2103` e a versão `v1.0.1`.
+
+Validações concluídas:
+
+- serviço `scc10-api` ativo;
+- `/api/health` e `/api/config` respondendo via HTTPS;
+- HTTP redirecionando para HTTPS;
+- dashboard e `ranking.html` carregando com HTTP 200;
+- coleta realtime e snapshots funcionando;
+- certificado para `192.168.0.71` confiado no Edge e no Chrome;
+- login administrativo funcionando via HTTPS.
+
+Fingerprint SHA-256 do certificado homologado:
+
+```text
+47:0F:83:34:57:E5:E1:37:38:81:E5:82:63:1B:33:28:3D:80:30:A7:8D:ED:CA:B5:F2:52:E6:54:AB:EC:B5:D8
+```
+
+## Validação local atual
+
+A branch `fix/remover-other-ranking` foi validada localmente com Service Account em
+`http://localhost:3000/dashboard` e backend em `http://127.0.0.1:3001`.
+
+- 23 testes passaram;
+- `npm run test:syntax` passou;
+- relatório GA4 real respondeu HTTP 200;
+- dashboard carregou dados realtime reais;
+- `(other)` não apareceu no ranking;
+- a credencial foi lida de `C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json`, fora do Git.
+
+## Validação visual e histórica — 9 de novembro de 2026
+
+- `ranking-teste.html` carregou 392 dimensões da propriedade;
+- relatório histórico retornou 114.506 registros;
+- `customEvent:categories`, `customEvent:author` e `customEvent:published_date` retornaram valores;
+- dashboard carregou 300 leitores em 30 minutos, 446 visualizações e 57 matérias ativas;
+- dashboard exibiu status `Online (30s)`;
+- endpoint de snapshots retornou 500 coletas armazenadas;
+- Histórico Local confirmado após múltiplos ciclos, sem duplicação visual dos snapshots;
+- fallback de URL retornou `/page/3445/` para o título `Página Inicial`;
+- título sem correspondência histórica permaneceu sem URL, sem fabricação de caminho.
+- fallback do sitemap retornou caminhos reais para duas matérias recentes sem correspondência histórica;
+
+### Investigação de títulos recentes sem URL
+
+O título `Estudante de 16 anos morre após passar mal durante o primeiro dia de prova do Enem 2026` e o título `Primavera com cara de inverno: cidade de SC registra primeira geada de novembro com -1,5°C` não tiveram correspondência histórica no momento do teste. O sitemap retornou, respectivamente, `/cotidiano/seguranca/estudante-de-16-anos-morre-apos-passar-mal-durante-o-primeiro-dia-de-prova-do-enem-2026/` e `/cotidiano/primavera-com-cara-de-inverno-cidade-de-sc-registra-primeira-geada-de-novembro-com-15c/`. Os caminhos foram lidos do sitemap, não gerados pelo sistema.
+
 Para testar o login administrativo, configure temporariamente no processo do backend:
 
 ```powershell

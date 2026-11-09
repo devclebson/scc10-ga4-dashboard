@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}SCC10 Analytics{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('pages.dashboard') }}">SCC10 Analytics</a>
+    <nav aria-label="Navegação principal">
+      <a class="{% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('pages.dashboard') }}">Dashboard</a>
+      <a class="{% if active_page == 'ranking' %}active{% endif %}" href="{{ url_for('pages.ranking') }}">Ranking</a>
+      <a class="{% if active_page == 'autores' %}active{% endif %}" href="{{ url_for('pages.autores') }}">Autores</a>
+      <a class="{% if active_page == 'configuracao' %}active{% endif %}" href="{{ url_for('pages.configuracao') }}">Configuração</a>
+    </nav>
+  </header>
+  <main class="container">{% block content %}{% endblock %}</main>
+</body>
+</html>
