@@ -52,6 +52,40 @@ class SQLiteRepository:
             ).fetchall()
         return {row['setting_key']: row['setting_value'] for row in rows}
 
+    def save_settings(self, values):
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            connection.execute('''
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    setting_key TEXT PRIMARY KEY,
+                    setting_value TEXT NOT NULL
+                )
+            ''')
+            columns = {
+                row['name'] for row in connection.execute('PRAGMA table_info(app_settings)')
+            }
+            has_updated_at = 'updated_at' in columns
+            timestamp = datetime.now(timezone.utc).isoformat()
+            if has_updated_at:
+                statement = '''
+                    INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(setting_key) DO UPDATE SET
+                        setting_value = excluded.setting_value,
+                        updated_at = excluded.updated_at
+                '''
+            else:
+                statement = '''
+                    INSERT INTO app_settings (setting_key, setting_value)
+                    VALUES (?, ?)
+                    ON CONFLICT(setting_key) DO UPDATE SET
+                        setting_value = excluded.setting_value
+                '''
+            for key, value in values.items():
+                parameters = (key, str(value), timestamp) if has_updated_at else (key, str(value))
+                connection.execute(statement, parameters)
+            connection.commit()
+
     def article_count(self, property_id: str | None):
         if not self.database_path.exists():
             return 0
@@ -83,6 +117,66 @@ class SQLiteRepository:
             },
             'articlesCached': article_count,
             'latestSnapshot': latest[0] if latest else None,
+        }
+
+    def collector_diagnostics(self, property_id: str | None, interval_seconds: int = 30):
+        latest = self.latest_snapshots(property_id, limit=1)
+        snapshot_count = 0
+        collector_table_exists = False
+        latest_run = None
+        latest_success = None
+        if self.database_path.exists():
+            with self.connect() as connection:
+                snapshot_count = connection.execute(
+                    '''SELECT COUNT(*) FROM realtime_snapshots
+                       WHERE (? IS NULL OR property_id = ?)''',
+                    (property_id, property_id),
+                ).fetchone()[0]
+                collector_table_exists = connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'collector_runs'"
+                ).fetchone() is not None
+                if collector_table_exists:
+                    latest_run = connection.execute(
+                        '''SELECT * FROM collector_runs
+                           WHERE property_id = ?
+                           ORDER BY started_at DESC, id DESC LIMIT 1''',
+                        (property_id,),
+                    ).fetchone()
+                    latest_success = connection.execute(
+                        '''SELECT * FROM collector_runs
+                           WHERE property_id = ? AND status = 'success'
+                           ORDER BY finished_at DESC, id DESC LIMIT 1''',
+                        (property_id,),
+                    ).fetchone()
+        latest_snapshot = latest[0] if latest else None
+        latest_at = latest_snapshot['captured_at'] if latest_snapshot else None
+        age_seconds = None
+        if latest_at:
+            try:
+                captured = datetime.fromisoformat(latest_at.replace('Z', '+00:00'))
+                if captured.tzinfo is None:
+                    captured = captured.replace(tzinfo=timezone.utc)
+                age_seconds = max(0, int((datetime.now(timezone.utc) - captured).total_seconds()))
+            except ValueError:
+                age_seconds = None
+        freshness = 'no-data'
+        if age_seconds is not None:
+            freshness = 'fresh' if age_seconds <= max(interval_seconds * 3, 90) else 'stale'
+        return {
+            'status': freshness,
+            'intervalSeconds': interval_seconds,
+            'snapshotCount': snapshot_count,
+            'latestSnapshotAt': latest_at,
+            'ageSeconds': age_seconds,
+            'activeArticlesCount': latest_snapshot['active_articles_count'] if latest_snapshot else 0,
+            'activeUsers30m': latest_snapshot['active_users_30m'] if latest_snapshot else 0,
+            'pageViews30m': latest_snapshot['page_views_30m'] if latest_snapshot else 0,
+            'lastStatus': latest_run['status'] if latest_run else None,
+            'lastDurationMs': latest_run['duration_ms'] if latest_run else None,
+            'lastSuccessAt': latest_success['finished_at'] if latest_success else None,
+            'lastSuccessRowsCount': latest_success['rows_count'] if latest_success else None,
+            'lastError': latest_run['error_message'] if latest_run else None,
+            'lastErrorStatus': 'recorded' if collector_table_exists else 'not-recorded',
         }
 
     def dashboard_data(self, property_id: str | None):

@@ -41,6 +41,14 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 40px); line-height: 1.2; lett
 .configuration-state h2 { margin: 0; font-size: 20px; }
 .configuration-description { margin: 8px 0 0; color: var(--color-muted-strong); font-size: 14px; }
 .configuration-actions { display: flex; align-items: center; gap: 10px; }
+.configuration-form { display: grid; max-width: 620px; gap: 10px; }
+.configuration-form label { color: var(--color-muted-strong); font-size: 13px; font-weight: 700; }
+.configuration-form input:not([type="checkbox"]), .configuration-form select { width: 100%; border: 1px solid #ced8e8; border-radius: 8px; padding: 12px; background: white; color: var(--color-text); font: inherit; }
+.configuration-form input:not([type="checkbox"]):focus, .configuration-form select:focus { outline: 2px solid #b8d0f5; border-color: #2468c9; }
+.configuration-form .button { width: fit-content; margin-top: 8px; }
+.configuration-form .button:disabled { cursor: wait; opacity: .65; }
+.admin-check { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.admin-check input { width: 16px; height: 16px; }
 .auth-card { max-width: 460px; padding: 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .auth-form { display: grid; gap: 10px; }
 .auth-form label { color: var(--color-muted-strong); font-size: 13px; font-weight: 700; }

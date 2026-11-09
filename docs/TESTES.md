@@ -23,6 +23,44 @@ curl http://127.0.0.1:3001/api/config
 
 O resultado esperado é `authMode: service-account` e `configured: true`.
 
+## Validação Flask local
+
+Na raiz do projeto, em um terminal separado:
+
+```cmd
+set "FLASK_ADMIN_PASSWORD_HASH=hash-gerado-fora-do-repositorio"
+set "FLASK_SECRET_KEY=chave-gerada-fora-do-repositorio"
+set "GOOGLE_SERVICE_ACCOUNT_FILE=C:\Users\<usuario>\AppData\Local\SCC10\secrets\ga4-service-account.json"
+set "SCC10_PROPERTY_ID=309943616"
+set "FLASK_HOST=127.0.0.1"
+set "FLASK_PORT=5000"
+set "FLASK_DEBUG=false"
+.venv\Scripts\python.exe run_flask.py
+```
+
+Abra `http://localhost:5000/configuracao`, entre na administração e verifique:
+
+- carregamento da propriedade atual;
+- seleção do período padrão;
+- comparação habilitada/desabilitada;
+- salvamento com mensagem de sucesso;
+- rejeição de propriedade inválida;
+- alteração sem token CSRF deve retornar `403`;
+- logout e bloqueio após sair;
+- sessão com timestamp expirado deve retornar `401`/redirecionar para login;
+- persistência depois de reiniciar o Flask.
+
+Na tela pública `/configuracao`, o diagnóstico deve mostrar banco, Service Account, propriedade, estado do coletor, intervalo, idade do snapshot, quantidade de snapshots, duração, última execução bem-sucedida e último erro. Bancos antigos sem `collector_runs` devem aparecer honestamente como não registrados.
+
+Testes automatizados da fatia:
+
+```cmd
+.venv\Scripts\python.exe -m pytest -q
+npm test
+npm run test:syntax
+git diff --check
+```
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit

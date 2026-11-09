@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { getSetting, getSnapshots, saveSnapshot, setSetting, upsertArticle } from './db.js';
+import { finishCollectorRun, getSetting, getSnapshots, saveSnapshot, setSetting, startCollectorRun, upsertArticle } from './db.js';
 import { isServiceAccountConfigured } from './services/google-auth.js';
 import { clearSessionCookie, ensureBootstrapAdmin, getSessionUser, isAdminAuthConfigured, isPasswordLoginConfigured, login, logout, sessionCookie } from './services/admin-auth.js';
 import { requestGa4Report, getGa4Metadata } from './services/ga4-client.js';
@@ -405,6 +405,8 @@ async function runScheduledRealtimeSnapshot() {
   if (!propertyId) return;
 
   realtimeSnapshotRunning = true;
+  const runStartedAt = new Date();
+  const collectorRunId = startCollectorRun({ propertyId, startedAt: runStartedAt.toISOString() });
   try {
     const [totalReport, pagesReport, minuteReport] = await Promise.all([
       requestGa4Report({
@@ -450,7 +452,7 @@ async function runScheduledRealtimeSnapshot() {
       users: Number(row.metricValues?.[0]?.value || 0),
       views: Number(row.metricValues?.[1]?.value || 0)
     }));
-    saveSnapshot({
+    const snapshot = saveSnapshot({
       propertyId,
       capturedAt: new Date().toISOString(),
       activeUsers5m: Number(fiveMinuteRow?.metricValues?.[0]?.value || 0),
@@ -463,8 +465,21 @@ async function runScheduledRealtimeSnapshot() {
         minuteSeries
       }
     });
+    finishCollectorRun(collectorRunId, {
+      finishedAt: new Date().toISOString(),
+      status: 'success',
+      durationMs: Date.now() - runStartedAt.getTime(),
+      snapshotId: snapshot.id,
+      rowsCount: pagesData?.rows?.length || 0
+    });
     console.log('Realtime snapshot saved');
   } catch (error) {
+    finishCollectorRun(collectorRunId, {
+      finishedAt: new Date().toISOString(),
+      status: 'error',
+      durationMs: Date.now() - runStartedAt.getTime(),
+      errorMessage: error.message
+    });
     pauseCollectorForQuota(error);
     console.warn(`Realtime snapshot failed: ${error.message}`);
   } finally {

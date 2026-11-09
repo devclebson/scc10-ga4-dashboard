@@ -6,15 +6,23 @@ Dashboard editorial para acompanhamento de audiência do portal SCC10 usando Goo
 
 ## Estado atual
 
-A aplicação possui quatro entradas separadas:
+A aplicação possui duas camadas durante a migração:
+
+- Flask: runtime novo das telas já migradas e da sessão administrativa;
+- Node.js: runtime de transição do coletor, GA4 e frontend antigo.
+
+As entradas Flask atuais são:
 
 ```text
-index.html            → inicialização e verificação do backend/GA4
-configuracao.html     → área administrativa
-dashboard.html        → monitor e relatórios
-ranking-teste.html    → teste isolado do ranking enriquecido
-materia.html          → análise detalhada de uma matéria e suas origens
+/ ou /dashboard       → monitor principal
+/ranking              → ranking editorial
+/autores              → ranking de autores
+/materias/<id>        → análise de matéria
+/configuracao         → diagnóstico operacional
+/configuracao/admin   → administração protegida
 ```
+
+As entradas HTML na raiz continuam sendo o runtime Node de transição e não devem ser confundidas com as rotas Flask.
 
 ```text
 .
@@ -114,7 +122,7 @@ index.html
 
 ### Área administrativa
 
-`configuracao.html` administra propriedade GA4, período padrão, comparação e intervalo do coletor. Os valores são persistidos na tabela `app_settings`. O acesso administrativo usa usuário, senha com hash no SQLite e cookie de sessão `HttpOnly`; o token antigo permanece apenas como fallback temporário na API.
+O futuro `/configuracao/admin` Flask administrará propriedade GA4, período padrão e comparação. Esses valores serão persistidos na tabela `app_settings`. O intervalo do coletor permanece no Node até o worker que o consome ser migrado. O acesso administrativo Flask usa hash em variável de ambiente e cookie de sessão `HttpOnly`; a administração Node permanece transitória até a conclusão da migração.
 
 ### Ranking enriquecido
 
@@ -205,7 +213,7 @@ Rotas Flask iniciais:
 /api/health        /api/config       /api/dashboard/summary
 ```
 
-A primeira fatia lê snapshots e configurações do SQLite existente. O dashboard realtime já foi migrado para o template Flask, com cards, ranking das notícias, canais e série por minuto. O GA4, autenticação, coletor e cálculos de ranking editorial continuam no Node até serem migrados e comparados. Para execução local:
+A primeira fatia lê snapshots e configurações do SQLite existente. O dashboard realtime já foi migrado para o template Flask, com cards, ranking das notícias, canais e série por minuto. O login administrativo Flask também foi validado. O GA4, coletor e parte dos cálculos de ranking continuam no Node até serem migrados e comparados. Para execução local:
 
 ```text
 uv venv .venv
@@ -214,4 +222,4 @@ uv pip install --python .venv/Scripts/python.exe -r requirements.txt
 http://127.0.0.1:5000/dashboard
 ```
 
-Próximas fatias: migrar o dashboard realtime, depois ranking editorial, autores, análise de matéria, autenticação administrativa e, por último, o worker do coletor. A troca do processo de produção só deve ocorrer depois de comparar respostas Node e Flask usando o mesmo SQLite e a mesma propriedade GA4.
+Próximas fatias: configuração editável Flask, diagnóstico operacional, serviços GA4 Python, worker/coletor e corte de produção. A troca do processo de produção só deve ocorrer depois de comparar respostas Node e Flask usando o mesmo SQLite e a mesma propriedade GA4. Arquivos antigos só serão movidos após o inventário e os gates registrados em `docs/INVENTARIO-ARQUIVAMENTO.md`.

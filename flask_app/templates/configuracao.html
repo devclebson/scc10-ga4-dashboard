@@ -1,9 +1,34 @@
 {% extends 'base.html' %}
 {% block title %}Configuração | SCC10 Analytics{% endblock %}
-{% block content %}<section class="hero"><p class="eyebrow">Administração</p><h1>Configuração</h1><p>Diagnóstico operacional somente leitura. Alterações administrativas serão liberadas depois da autenticação Flask.</p></section><section class="configuration-state"><div class="panel-heading"><div><h2>Status da aplicação</h2><p class="configuration-description">Verifique a conexão local, o snapshot mais recente e a configuração não sensível do GA4.</p></div><div class="configuration-actions"><span class="status-chip">Somente leitura</span><a class="button button-secondary" href="{{ url_for('pages.configuracao_login') }}">Acessar administração</a></div></div><div id="diagnostics" class="diagnostics-grid"><div class="empty-state">Carregando diagnóstico...</div></div></section><script>
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">Administração</p>
+  <h1>Configuração</h1>
+  <p>Diagnóstico operacional somente leitura. Alterações administrativas exigem autenticação Flask.</p>
+</section>
+<section class="configuration-state">
+  <div class="panel-heading">
+    <div>
+      <h2>Status da aplicação</h2>
+      <p class="configuration-description">Verifique o banco, o snapshot mais recente, o coletor e a configuração não sensível do GA4.</p>
+    </div>
+    <div class="configuration-actions">
+      <span class="status-chip">Somente leitura</span>
+      <a class="button button-secondary" href="{{ url_for('pages.configuracao_login') }}">Acessar administração</a>
+    </div>
+  </div>
+  <div id="diagnostics" class="diagnostics-grid"><div class="empty-state">Carregando diagnóstico...</div></div>
+</section>
+<script>
 const diagnosticsEndpoint = '{{ url_for("api.config_diagnostics") }}';
 const number = value => Number(value || 0).toLocaleString('pt-BR');
+const age = value => value == null ? '--' : `${number(value)} s`;
 const status = (ok, yes = 'OK', no = 'Pendente') => `<span class="diagnostic-status ${ok ? 'is-ok' : 'is-pending'}">${ok ? yes : no}</span>`;
+const collectorStatus = value => value === 'fresh'
+  ? status(true, 'Atualizado')
+  : value === 'stale'
+    ? status(false, 'Desatualizado', 'Desatualizado')
+    : status(false, 'Sem dados', 'Sem dados');
 async function loadDiagnostics() {
   const target = document.querySelector('#diagnostics');
   try {
@@ -11,8 +36,20 @@ async function loadDiagnostics() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o diagnóstico.');
     const latest = data.latestSnapshot;
-    target.innerHTML = `<article class="diagnostic-card"><span>Banco SQLite</span><strong>${status(data.database.exists)}</strong><small>${data.database.fileName} · ${number(data.database.sizeBytes)} bytes</small></article><article class="diagnostic-card"><span>Estrutura do banco</span><strong>${status(data.database.hasSnapshotsTable && data.database.hasArticlesTable)}</strong><small>${number(data.articlesCached)} matérias em cache</small></article><article class="diagnostic-card"><span>Service Account</span><strong>${status(data.ga4Configured, 'Configurada', 'Não configurada')}</strong><small>Credencial não exibida nesta tela</small></article><article class="diagnostic-card"><span>Propriedade GA4</span><strong>${data.propertyId || '--'}</strong><small>Identificador ativo no processo</small></article><article class="diagnostic-card diagnostic-card-wide"><span>Último snapshot</span><strong>${latest ? new Date(latest.captured_at).toLocaleString('pt-BR') : 'Nenhum snapshot'}</strong><small>${latest ? `${number(latest.active_users_30m)} leitores · ${number(latest.page_views_30m)} visualizações` : 'O coletor ainda não registrou dados.'}</small></article>`;
+    const collector = data.collector || {};
+    target.innerHTML = `
+      <article class="diagnostic-card"><span>Banco SQLite</span><strong>${status(data.database.exists)}</strong><small>${data.database.fileName} · ${number(data.database.sizeBytes)} bytes</small></article>
+      <article class="diagnostic-card"><span>Estrutura do banco</span><strong>${status(data.database.hasSnapshotsTable && data.database.hasArticlesTable)}</strong><small>${number(data.articlesCached)} matérias em cache</small></article>
+      <article class="diagnostic-card"><span>Service Account</span><strong>${status(data.ga4Configured, 'Configurada', 'Não configurada')}</strong><small>Credencial não exibida nesta tela</small></article>
+      <article class="diagnostic-card"><span>Propriedade GA4</span><strong>${data.propertyId || '--'}</strong><small>Identificador ativo no processo</small></article>
+      <article class="diagnostic-card"><span>Coletor</span><strong>${collectorStatus(collector.status)}</strong><small>Intervalo configurado: ${number(collector.intervalSeconds)} s</small></article>
+      <article class="diagnostic-card"><span>Idade do snapshot</span><strong>${age(collector.ageSeconds)}</strong><small>${number(collector.snapshotCount)} snapshots da propriedade</small></article>
+      <article class="diagnostic-card diagnostic-card-wide"><span>Último snapshot</span><strong>${latest ? new Date(latest.captured_at).toLocaleString('pt-BR') : 'Nenhum snapshot'}</strong><small>${latest ? `${number(latest.active_users_30m)} leitores · ${number(latest.page_views_30m)} visualizações · ${number(collector.activeArticlesCount)} matérias ativas` : 'O coletor ainda não registrou dados.'}</small></article>
+      <article class="diagnostic-card"><span>Última execução</span><strong>${collector.lastStatus || 'Sem execução'}</strong><small>${collector.lastDurationMs == null ? '--' : `${number(collector.lastDurationMs)} ms`}</small></article>
+      <article class="diagnostic-card"><span>Última execução bem-sucedida</span><strong>${collector.lastSuccessAt ? new Date(collector.lastSuccessAt).toLocaleString('pt-BR') : '--'}</strong><small>${collector.lastSuccessRowsCount == null ? '--' : `${number(collector.lastSuccessRowsCount)} linhas`}</small></article>
+      <article class="diagnostic-card diagnostic-card-wide"><span>Último erro</span><strong>${collector.lastError || 'Nenhum erro registrado'}</strong><small>${collector.lastErrorStatus === 'not-recorded' ? 'O runtime Flask ainda não recebe eventos detalhados de erro do worker Node.' : 'Origem registrada pelo coletor.'}</small></article>`;
   } catch (error) { target.innerHTML = `<div class="empty-state error">${error.message}</div>`; }
 }
 loadDiagnostics();
-</script>{% endblock %}
+</script>
+{% endblock %}

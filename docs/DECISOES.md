@@ -39,7 +39,15 @@ Categoria, autor e data de publicação serão validados em `ranking-teste.html`
 
 ## Configuração persistida
 
-Propriedade, período padrão, comparação e intervalo do coletor são persistidos na tabela SQLite `app_settings`. Credenciais e chaves privadas permanecem fora do banco e fora do frontend.
+Propriedade, período padrão, comparação e intervalo do coletor são persistidos na tabela SQLite `app_settings`. A primeira tela administrativa Flask grava somente propriedade, período padrão e comparação; o intervalo do coletor permanece fora dela enquanto o worker consumidor continuar no Node. Credenciais e chaves privadas permanecem fora do banco e fora do frontend.
+
+## Migração administrativa para Flask
+
+O login administrativo oficial da nova camada usa hash em `FLASK_ADMIN_PASSWORD_HASH`, chave de sessão em `FLASK_SECRET_KEY` e sessão Flask em cookie. As rotas `/api/config/admin` exigem sessão, token CSRF e validam os valores antes de atualizar `app_settings`. A sessão tem validade configurável por `FLASK_ADMIN_SESSION_LIFETIME_SECONDS`, com padrão de uma hora. A API administrativa Node continua transitória até a migração do worker e dos serviços GA4.
+
+## Diagnóstico do coletor durante a transição
+
+O Flask calcula estado, idade do snapshot, quantidade de snapshots e métricas da última coleta a partir de `realtime_snapshots`. O Node registra os eventos de execução em `collector_runs`; o Flask mostra duração, sucesso e erro quando a tabela existe. Bancos antigos sem essa tabela permanecem com `lastErrorStatus` igual a `not-recorded`.
 
 ## Versionamento exibido
 

@@ -64,9 +64,10 @@ O ranking realtime existente está funcionando com snapshots do backend. A branc
 
 ## Próxima etapa imediata
 
-- Validar visualmente a tela `autores.html` com o relatório histórico real.
-- Remover código morto do fluxo OAuth legado depois da homologação.
-- Restringir a regra sudo temporária criada para o usuário de deploy.
+- Validar visualmente a edição da configuração com o Flask autenticado.
+- Validar visualmente o diagnóstico operacional detalhado.
+- Manter o intervalo do coletor fora da tela até o worker que o consome ser migrado.
+- Atualizar o inventário antes de arquivar qualquer arquivo do runtime Node.
 
 Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou 392 dimensões e 114.506 registros; as dimensões técnicas de categoria, autor e publicação retornaram dados; o dashboard carregou dados realtime reais; o coletor manteve 500 snapshots; o Histórico Local foi confirmado após múltiplos ciclos; e o fallback retornou `/page/3445/` para `Página Inicial`.
 
@@ -91,8 +92,14 @@ Ranking de autores iniciado em `autores.html`: período mês atual, pódio, rank
 - O pódio usa iniciais automaticamente quando a imagem externa falha ou o portal bloqueia o acesso.
 - Atualização manual e automática a cada 30 segundos implementadas na tela Flask.
 - Backend Node.js e coletor GA4 permanecem intactos durante a migração.
+- Login administrativo Flask validado visualmente em `/configuracao/admin`.
+- Configuração Flask editável criada para propriedade, período padrão e comparação.
+- Rotas protegidas `/api/config/admin` implementadas com persistência em `app_settings`.
+- Validação automatizada cobre leitura, gravação, persistência e entradas inválidas.
+- Hash da senha e `FLASK_SECRET_KEY` configurados por ambiente, sem armazenamento no repositório.
+- Inventário de arquivos transitórios e candidatos a arquivamento registrado em `docs/INVENTARIO-ARQUIVAMENTO.md`.
 
-Próxima fatia: migrar o ranking editorial para uma rota Flask, reutilizando o mesmo repository e snapshot sem duplicar consultas ao GA4.
+Próxima fatia: liberar a edição protegida de configurações no Flask, reutilizando a tabela `app_settings` sem duplicar o coletor.
 
 ## Backend e coleta
 

@@ -25,6 +25,21 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_realtime_snapshots_property_time
     ON realtime_snapshots(property_id, captured_at);
 
+  CREATE TABLE IF NOT EXISTS collector_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    status TEXT NOT NULL,
+    duration_ms INTEGER,
+    snapshot_id INTEGER,
+    rows_count INTEGER,
+    error_message TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_collector_runs_property_time
+    ON collector_runs(property_id, started_at);
+
   CREATE TABLE IF NOT EXISTS app_settings (
     setting_key TEXT PRIMARY KEY,
     setting_value TEXT NOT NULL,
@@ -103,6 +118,67 @@ export function saveSnapshot(snapshot) {
     JSON.stringify(snapshot.payload || {})
   );
   return { id: Number(result.lastInsertRowid) };
+}
+
+const insertCollectorRun = db.prepare(`
+  INSERT INTO collector_runs (property_id, started_at, status)
+  VALUES (?, ?, 'running')
+`);
+const finishCollectorRunStatement = db.prepare(`
+  UPDATE collector_runs
+  SET finished_at = ?, status = ?, duration_ms = ?, snapshot_id = ?, rows_count = ?, error_message = ?
+  WHERE id = ?
+`);
+const latestCollectorRunStatement = db.prepare(`
+  SELECT * FROM collector_runs
+  WHERE property_id = ?
+  ORDER BY started_at DESC, id DESC
+  LIMIT 1
+`);
+const latestSuccessfulCollectorRunStatement = db.prepare(`
+  SELECT * FROM collector_runs
+  WHERE property_id = ? AND status = 'success'
+  ORDER BY finished_at DESC, id DESC
+  LIMIT 1
+`);
+
+export function startCollectorRun({ propertyId, startedAt = new Date().toISOString() }) {
+  const result = insertCollectorRun.run(propertyId, startedAt);
+  return Number(result.lastInsertRowid);
+}
+
+export function finishCollectorRun(runId, {
+  finishedAt = new Date().toISOString(),
+  status,
+  durationMs = null,
+  snapshotId = null,
+  rowsCount = null,
+  errorMessage = null
+}) {
+  finishCollectorRunStatement.run(
+    finishedAt,
+    status,
+    durationMs,
+    snapshotId,
+    rowsCount,
+    errorMessage,
+    runId
+  );
+}
+
+export function getCollectorStatus(propertyId) {
+  const latest = latestCollectorRunStatement.get(propertyId);
+  const latestSuccess = latestSuccessfulCollectorRunStatement.get(propertyId);
+  return {
+    lastStatus: latest?.status || null,
+    lastError: latest?.error_message || null,
+    lastDurationMs: latest?.duration_ms ?? null,
+    lastStartedAt: latest?.started_at || null,
+    lastFinishedAt: latest?.finished_at || null,
+    lastSuccessAt: latestSuccess?.finished_at || null,
+    lastSuccessRowsCount: latestSuccess?.rows_count ?? null,
+    lastSuccessSnapshotId: latestSuccess?.snapshot_id ?? null
+  };
 }
 
 export function getSnapshots({ propertyId, from, to, limit = 500 }) {
