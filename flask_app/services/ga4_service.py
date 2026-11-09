@@ -7,25 +7,25 @@ from google.oauth2 import service_account
 
 DATA_API_BASE = 'https://analyticsdata.googleapis.com/v1beta/properties'
 SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
-_credentials = None
+_cached_credentials = None
 
 
-def _credentials():
-    global _credentials
-    if _credentials and _credentials.valid:
-        return _credentials
+def _get_credentials():
+    global _cached_credentials
+    if _cached_credentials and _cached_credentials.valid:
+        return _cached_credentials
     raw_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
     file_path = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE')
     if raw_json:
         info = json.loads(raw_json)
-        _credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        _cached_credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
     elif file_path:
-        _credentials = service_account.Credentials.from_service_account_file(file_path, scopes=SCOPES)
+        _cached_credentials = service_account.Credentials.from_service_account_file(file_path, scopes=SCOPES)
     else:
         return None
-    if not _credentials.valid:
-        _credentials.refresh(GoogleRequest())
-    return _credentials
+    if not _cached_credentials.valid:
+        _cached_credentials.refresh(GoogleRequest())
+    return _cached_credentials
 
 
 def configured():
@@ -33,7 +33,7 @@ def configured():
 
 
 def run_article_traffic(property_id, page_path, start_date='30daysAgo'):
-    credentials = _credentials()
+    credentials = _get_credentials()
     if not credentials:
         raise RuntimeError('Service Account não configurada no Flask.')
     payload = {
