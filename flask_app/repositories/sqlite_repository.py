@@ -1,15 +1,33 @@
 from pathlib import Path
 import sqlite3
+from datetime import datetime, timezone
+
+from ..services.author_profile import resolve_author_profile
 
 
 class SQLiteRepository:
     def __init__(self, database_path: Path):
         self.database_path = Path(database_path)
+        self._ensure_author_profiles_table()
 
     def connect(self):
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _ensure_author_profiles_table(self):
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            connection.execute('''
+                CREATE TABLE IF NOT EXISTS author_profiles (
+                    author_name TEXT PRIMARY KEY,
+                    profile_url TEXT,
+                    image_url TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    checked_at TEXT NOT NULL
+                )
+            ''')
+            connection.commit()
 
     def latest_snapshots(self, property_id: str | None, limit: int = 30):
         if not self.database_path.exists():
@@ -121,4 +139,39 @@ class SQLiteRepository:
                 'topArticle': item['topArticle'],
             })
         authors.sort(key=lambda item: (-item['views'], -item['publications'], item['author']))
+        profiles = self._author_profiles(authors[:3])
+        for author in authors:
+            author['profile'] = profiles.get(author['author'], {'profileUrl': None, 'imageUrl': None, 'status': 'not-requested'})
         return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': authors}
+
+    def _author_profiles(self, authors):
+        profiles = {}
+        now = datetime.now(timezone.utc)
+        with self.connect() as connection:
+            for author in authors:
+                name = author['author']
+                cached = connection.execute(
+                    'SELECT profile_url, image_url, status, checked_at FROM author_profiles WHERE author_name = ?',
+                    (name,),
+                ).fetchone()
+                fresh = False
+                if cached:
+                    try:
+                        checked_at = datetime.fromisoformat(cached['checked_at'].replace('Z', '+00:00'))
+                        fresh = (now - checked_at).total_seconds() < 86400
+                    except ValueError:
+                        fresh = False
+                if fresh:
+                    profiles[name] = {'profileUrl': cached['profile_url'], 'imageUrl': cached['image_url'], 'status': cached['status']}
+                    continue
+                profile = resolve_author_profile(name, author.get('topArticle', {}).get('pagePath'))
+                connection.execute(
+                    '''INSERT INTO author_profiles (author_name, profile_url, image_url, status, checked_at)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(author_name) DO UPDATE SET profile_url=excluded.profile_url,
+                       image_url=excluded.image_url, status=excluded.status, checked_at=excluded.checked_at''',
+                    (name, profile['profileUrl'], profile['imageUrl'], profile['status'], now.isoformat().replace('+00:00', 'Z')),
+                )
+                profiles[name] = profile
+            connection.commit()
+        return profiles
