@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Acesso administrativo | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero"><p class="eyebrow">Administração</p><h1>Acesso administrativo</h1><p>Informe a senha administrativa para acessar configurações protegidas.</p></section>
+<section class="auth-card">
+  <form method="post" class="auth-form">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="password">Senha administrativa</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <button class="button" type="submit">Entrar</button>
+  </form>
+</section>
+{% endblock %}

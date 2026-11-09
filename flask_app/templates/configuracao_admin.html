@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Administração | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero"><p class="eyebrow">Administração protegida</p><h1>Configurações</h1><p>Área autenticada preparada para receber as configurações editáveis do Flask.</p></section>
+<section class="configuration-state"><div class="panel-heading"><div><h2>Acesso autorizado</h2><p class="configuration-description">Nenhuma configuração editável foi liberada nesta etapa.</p></div><form method="post" action="{{ url_for('pages.configuracao_logout') }}"><button class="button button-secondary" type="submit">Sair</button></form></div></section>
+{% endblock %}

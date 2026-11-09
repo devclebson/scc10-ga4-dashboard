@@ -1,6 +1,7 @@
 import sqlite3
 
 from flask_app import create_app
+from werkzeug.security import generate_password_hash
 
 
 def test_routes_and_existing_sqlite(tmp_path):
@@ -28,6 +29,8 @@ def test_routes_and_existing_sqlite(tmp_path):
         TESTING = True
         DATABASE_PATH = database
         PROPERTY_ID = '123'
+        SECRET_KEY = 'test-secret'
+        ADMIN_PASSWORD_HASH = generate_password_hash('test-password')
 
     client = create_app(TestConfig).test_client()
     assert client.get('/dashboard').status_code == 200
@@ -35,6 +38,13 @@ def test_routes_and_existing_sqlite(tmp_path):
     assert client.get('/autores').status_code == 200
     assert client.get('/materias/1').status_code == 200
     assert client.get('/configuracao').status_code == 200
+    assert client.get('/configuracao/admin').status_code == 302
+    assert client.get('/configuracao/login').status_code == 200
+    login = client.post('/configuracao/login', data={'password': 'test-password'}, follow_redirects=False)
+    assert login.status_code == 302
+    assert login.headers['Location'].endswith('/configuracao/admin')
+    assert client.get('/configuracao/admin').status_code == 200
+    assert client.post('/configuracao/logout').status_code == 302
     diagnostics = client.get('/api/config/diagnostics').get_json()
     assert diagnostics['database']['exists'] is True
     assert diagnostics['database']['hasSnapshotsTable'] is True
