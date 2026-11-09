@@ -1,6 +1,6 @@
 import { escapeHtml } from '../utils/formatters.js';
 
-const NON_ARTICLE_TITLES = new Set(['(not set)', 'página inicial', 'página não encontrada']);
+const NON_ARTICLE_TITLES = new Set(['(not set)', '(other)', 'página inicial', 'página não encontrada']);
 
 export function canOpenRanking(selectedPropertyId, backendPropertyId, isDemo, usingBackend) {
   return !isDemo && Boolean(usingBackend) && Boolean(backendPropertyId)

@@ -26,6 +26,12 @@
 - Service Account validada com relatório GA4 real sem token no navegador.
 - Coletor realtime independente validado com snapshots gravados no SQLite.
 - Dashboard validado visualmente com métricas e ranking reais.
+- Versionamento visível implementado no dashboard, ranking e configuração (`v1.0.1`).
+- Container LXC de homologação atualizado para o commit `34543ec` na branch `master`.
+- HTTPS configurado no container `192.168.0.71` com certificado para o IP.
+- Certificado confiado no Edge e Chrome, com acesso HTTPS validado.
+- Login administrativo validado via HTTPS.
+- `master` e `develop` sincronizadas no commit `34543ec`; branches temporárias removidas.
 
 ## Estado atual
 
@@ -39,7 +45,7 @@ configuracao.html  ← se houver erro de configuração
  dashboard.html     ← se a consulta GA4 for validada
 ```
 
-O ranking realtime existente não foi alterado. O teste enriquecido é executado separadamente para evitar regressões.
+O ranking realtime existente está funcionando com snapshots do backend. A branch atual contém a correção de `(other)` e o fallback de URL; ainda não foi integrada em `develop` nem publicada no container.
 
 ## Estado da evolução editorial
 
@@ -47,6 +53,8 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 - Cache de matérias integrado ao ranking realtime.
 - Ranking com filtro de páginas não editoriais e seleção Top-N em dropdown.
 - `materia.html` criada com origens de tráfego e detalhes históricos.
+- `(other)` removido da lista editorial sem alterar o denominador do portal.
+- Fallback em lote de `pageTitle`/`pagePath` implementado para títulos sem enriquecimento completo.
 - Dimensões técnicas identificadas:
   - `customEvent:categories` → Categorias;
   - `customEvent:author` → Autor;
@@ -55,9 +63,12 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 
 ## Próxima etapa imediata
 
-- Validar `ranking-teste.html` com os nomes técnicos atuais da propriedade.
-- Validar a aba `Histórico Local` após múltiplos ciclos do coletor.
 - Remover código morto do fluxo OAuth legado depois da homologação.
+- Restringir a regra sudo temporária criada para o usuário de deploy.
+
+Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou 392 dimensões e 114.506 registros; as dimensões técnicas de categoria, autor e publicação retornaram dados; o dashboard carregou dados realtime reais; o coletor manteve 500 snapshots; o Histórico Local foi confirmado após múltiplos ciclos; e o fallback retornou `/page/3445/` para `Página Inicial`.
+
+A investigação dos títulos recentes sem URL mostrou que o título exibido no realtime não aparece com correspondência exata no relatório histórico de 30 dias. O fallback está correto ao retornar metadados indisponíveis, pois não deve criar uma URL aproximada. A sincronização agendada do cache continua sendo a forma de capturar a matéria quando o GA4 histórico passar a retorná-la.
 
 ## Backend e coleta
 
@@ -69,7 +80,8 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 
 ## Segurança e operação
 
-- Validar login administrativo em produção com `NODE_ENV=production` e remover o fallback `SCC10_ADMIN_TOKEN` após a migração.
+- Login administrativo validado via HTTPS em `NODE_ENV=production`; remover o fallback `SCC10_ADMIN_TOKEN` após a migração.
+- Substituir o certificado autoassinado por certificado de CA interna ou DNS confiável antes de exposição ampliada.
 - Remover gradualmente o OAuth legado do frontend.
 - Restringir CORS e endpoints administrativos.
 - Criar backup automático do SQLite.
@@ -81,6 +93,8 @@ O ranking realtime existente não foi alterado. O teste enriquecido é executado
 - Sincronizar metadados do CMS ou relatório GA4.
 - Criar histórico de audiência por matéria.
 - Exibir categoria, autor, data, URL, pico e crescimento.
+
+O fallback de URL foi implementado localmente. Os títulos muito recentes que ainda não aparecem no relatório histórico do GA4 continuam sem URL por limitação da fonte, não por associação aproximada; não devemos fabricar caminhos.
 
 ## Validação
 

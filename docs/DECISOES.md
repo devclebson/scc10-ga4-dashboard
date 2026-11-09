@@ -40,3 +40,15 @@ Categoria, autor e data de publicação serão validados em `ranking-teste.html`
 ## Configuração persistida
 
 Propriedade, período padrão, comparação e intervalo do coletor são persistidos na tabela SQLite `app_settings`. Credenciais e chaves privadas permanecem fora do banco e fora do frontend.
+
+## Versionamento exibido
+
+O dashboard usa versionamento semântico no `package.json` e exibe a versão atual nas telas principais. Toda atualização publicada no container deve alterar o número da versão, executar os testes e registrar o commit implantado.
+
+## HTTPS no container de homologação
+
+O container privado usa HTTPS mesmo por IP. O certificado autoassinado foi confiado nas estações de homologação; antes de ampliar o acesso, deve ser substituído por certificado emitido por uma CA interna ou por DNS confiável.
+
+## Agrupamento `(other)` do GA4
+
+`(other)` é uma linha agregada do GA4, não uma matéria. A correção será feita no renderer do ranking: a linha não será exibida como notícia, mas suas visualizações permanecerão no denominador explicitamente identificado como total do portal.

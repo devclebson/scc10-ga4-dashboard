@@ -6,6 +6,7 @@ import { buildRankingArticles, buildRankingRowsHtml, canOpenRanking, readRanking
 test('ranking preserva somente matérias e calcula tendência entre coletas', () => {
   const pages = [
     { title: 'Página Inicial', users: 100, views: 110 },
+    { title: '(other)', users: 80, views: 90 },
     { title: 'Notícia importante', users: 12, views: 20 },
     { title: 'Rádio Clube', users: 9, views: 10 },
     { title: 'Outra notícia', users: 3, views: 5 }
