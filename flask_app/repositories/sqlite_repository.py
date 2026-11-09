@@ -61,6 +61,30 @@ class SQLiteRepository:
                 (property_id, property_id),
             ).fetchone()[0]
 
+    def diagnostics(self, property_id: str | None):
+        database_exists = self.database_path.exists()
+        latest = self.latest_snapshots(property_id, limit=1)
+        article_count = self.article_count(property_id) if database_exists else 0
+        tables = set()
+        if database_exists:
+            with self.connect() as connection:
+                tables = {
+                    row['name'] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    )
+                }
+        return {
+            'database': {
+                'fileName': self.database_path.name,
+                'exists': database_exists,
+                'sizeBytes': self.database_path.stat().st_size if database_exists else 0,
+                'hasSnapshotsTable': 'realtime_snapshots' in tables,
+                'hasArticlesTable': 'articles' in tables,
+            },
+            'articlesCached': article_count,
+            'latestSnapshot': latest[0] if latest else None,
+        }
+
     def dashboard_data(self, property_id: str | None):
         snapshots = self.latest_snapshots(property_id, limit=1)
         if not snapshots:

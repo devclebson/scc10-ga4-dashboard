@@ -35,6 +35,13 @@ def test_routes_and_existing_sqlite(tmp_path):
     assert client.get('/autores').status_code == 200
     assert client.get('/materias/1').status_code == 200
     assert client.get('/configuracao').status_code == 200
+    diagnostics = client.get('/api/config/diagnostics').get_json()
+    assert diagnostics['database']['exists'] is True
+    assert diagnostics['database']['hasSnapshotsTable'] is True
+    assert diagnostics['database']['hasArticlesTable'] is True
+    assert diagnostics['articlesCached'] == 1
+    assert diagnostics['latestSnapshot']['active_users_30m'] == 9
+    assert diagnostics['propertyId'] == '123'
     payload = client.get('/api/dashboard/summary').get_json()
     assert payload['latest']['active_users_30m'] == 9
     assert payload['articlesCached'] == 1

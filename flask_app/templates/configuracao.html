@@ -1,3 +1,18 @@
 {% extends 'base.html' %}
 {% block title %}Configuração | SCC10 Analytics{% endblock %}
-{% block content %}<section class="hero"><p class="eyebrow">Administração</p><h1>Configuração</h1><p>As configurações serão migradas para a autenticação Flask depois da validação das rotas.</p></section><div class="empty-state configuration-state"><strong>Configuração protegida</strong><p>Tela administrativa pendente de migração. Os dados do dashboard continuam sendo carregados pelo banco local e pelo processo Flask.</p><span class="status-chip">Em migração</span></div>{% endblock %}
+{% block content %}<section class="hero"><p class="eyebrow">Administração</p><h1>Configuração</h1><p>Diagnóstico operacional somente leitura. Alterações administrativas serão liberadas depois da autenticação Flask.</p></section><section class="configuration-state"><div class="panel-heading"><div><h2>Status da aplicação</h2><p class="configuration-description">Verifique a conexão local, o snapshot mais recente e a configuração não sensível do GA4.</p></div><span class="status-chip">Somente leitura</span></div><div id="diagnostics" class="diagnostics-grid"><div class="empty-state">Carregando diagnóstico...</div></div></section><script>
+const diagnosticsEndpoint = '{{ url_for("api.config_diagnostics") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const status = (ok, yes = 'OK', no = 'Pendente') => `<span class="diagnostic-status ${ok ? 'is-ok' : 'is-pending'}">${ok ? yes : no}</span>`;
+async function loadDiagnostics() {
+  const target = document.querySelector('#diagnostics');
+  try {
+    const response = await fetch(diagnosticsEndpoint, { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o diagnóstico.');
+    const latest = data.latestSnapshot;
+    target.innerHTML = `<article class="diagnostic-card"><span>Banco SQLite</span><strong>${status(data.database.exists)}</strong><small>${data.database.fileName} · ${number(data.database.sizeBytes)} bytes</small></article><article class="diagnostic-card"><span>Estrutura do banco</span><strong>${status(data.database.hasSnapshotsTable && data.database.hasArticlesTable)}</strong><small>${number(data.articlesCached)} matérias em cache</small></article><article class="diagnostic-card"><span>Service Account</span><strong>${status(data.ga4Configured, 'Configurada', 'Não configurada')}</strong><small>Credencial não exibida nesta tela</small></article><article class="diagnostic-card"><span>Propriedade GA4</span><strong>${data.propertyId || '--'}</strong><small>Identificador ativo no processo</small></article><article class="diagnostic-card diagnostic-card-wide"><span>Último snapshot</span><strong>${latest ? new Date(latest.captured_at).toLocaleString('pt-BR') : 'Nenhum snapshot'}</strong><small>${latest ? `${number(latest.active_users_30m)} leitores · ${number(latest.page_views_30m)} visualizações` : 'O coletor ainda não registrou dados.'}</small></article>`;
+  } catch (error) { target.innerHTML = `<div class="empty-state error">${error.message}</div>`; }
+}
+loadDiagnostics();
+</script>{% endblock %}

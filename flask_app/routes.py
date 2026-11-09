@@ -97,3 +97,17 @@ def config():
         'defaultDateRange': settings.get('defaultDateRange', '30'),
         'compareEnabled': settings.get('compareEnabled', 'true') == 'true',
     })
+
+
+@api.get('/config/diagnostics')
+def config_diagnostics():
+    repository = current_app.extensions['repository']
+    settings = repository.settings()
+    property_id = settings.get('propertyId') or current_app.config.get('PROPERTY_ID')
+    diagnostics = repository.diagnostics(property_id)
+    diagnostics.update({
+        'propertyId': property_id,
+        'ga4Configured': ga4_configured(),
+        'service': 'scc10-flask',
+    })
+    return jsonify(diagnostics)
