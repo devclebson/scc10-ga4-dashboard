@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify, render_template
+from flask import Blueprint, current_app, jsonify, render_template, request
 
 pages = Blueprint('pages', __name__)
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -48,6 +48,16 @@ def health():
 def dashboard_summary():
     repository = current_app.extensions['repository']
     return jsonify(repository.dashboard_data(current_app.config.get('PROPERTY_ID')))
+
+
+@api.get('/ranking')
+def ranking_data():
+    repository = current_app.extensions['repository']
+    try:
+        limit = int(request.args.get('limit', 20))
+    except (AttributeError, ValueError):
+        limit = 20
+    return jsonify(repository.ranking_data(current_app.config.get('PROPERTY_ID'), limit))
 
 
 @api.get('/config')

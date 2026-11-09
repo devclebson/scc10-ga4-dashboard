@@ -35,3 +35,6 @@ def test_routes_and_existing_sqlite(tmp_path):
     payload = client.get('/api/dashboard/summary').get_json()
     assert payload['latest']['active_users_30m'] == 9
     assert payload['articlesCached'] == 1
+    ranking = client.get('/api/ranking?limit=1').get_json()
+    assert ranking['articles'][0]['title'] == 'Teste'
+    assert ranking['totalViews'] == 4

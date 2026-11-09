@@ -83,6 +83,7 @@ Ranking de autores iniciado em `autores.html`: período mês atual, pódio, rank
 - Rotas `/dashboard`, `/ranking`, `/autores`, `/materias/<id>` e `/configuracao` validadas.
 - `/api/dashboard/summary` já lê o snapshot mais recente e a quantidade real de matérias do SQLite existente.
 - Dashboard realtime migrado para o template Flask: cards de leitores/visualizações, notícias mais lidas, canais do dia e série por minuto.
+- Ranking editorial migrado para `/ranking`, com rota `/api/ranking`, limite Top-N e tabela baseada no snapshot mais recente.
 - O dashboard Flask filtra `(other)` e `(not set)` da lista editorial sem alterar os dados armazenados.
 - Atualização manual e automática a cada 30 segundos implementadas na tela Flask.
 - Backend Node.js e coletor GA4 permanecem intactos durante a migração.

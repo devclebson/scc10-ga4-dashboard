@@ -68,3 +68,13 @@ class SQLiteRepository:
             'minuteSeries': payload.get('minuteSeries', []),
             'articlesCached': self.article_count(property_id),
         }
+
+    def ranking_data(self, property_id: str | None, limit: int = 20):
+        data = self.dashboard_data(property_id)
+        articles = data['topPages'][:max(1, min(int(limit), 100))]
+        total_views = sum(int(article.get('views', 0)) for article in articles)
+        return {
+            'capturedAt': data['latest']['captured_at'] if data['latest'] else None,
+            'totalViews': total_views,
+            'articles': articles,
+        }
