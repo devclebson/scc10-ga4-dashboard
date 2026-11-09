@@ -90,5 +90,32 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 40px); line-height: 1.2; lett
 .author-podium-card span:not(.author-medal):not(.author-avatar), .author-podium-card small { color: #71809e; }
 .author-avatar { width: 82px; height: 82px; display: grid; place-items: center; border-radius: 50%; background: #e8f0ff; color: #225db1; font-size: 24px; font-weight: 800; object-fit: cover; }
 .author-medal { position: absolute; top: 14px; right: 18px; font-size: 24px; }
-@media (max-width: 760px) { .topbar { align-items: flex-start; flex-direction: column; padding: 18px 4vw; } .cards { grid-template-columns: repeat(2, 1fr); } .dashboard-grid { grid-template-columns: 1fr; } .dashboard-hero { align-items: flex-start; flex-direction: column; } .ranking-actions { width: 100%; } .author-podium { grid-template-columns: 1fr; } }
-@media (max-width: 460px) { .cards { grid-template-columns: 1fr; } nav a { padding: 8px 9px; font-size: 14px; } }
+@media (max-width: 900px) {
+  .container { width: min(94vw, 760px); padding-top: 36px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-hero { align-items: flex-start; flex-direction: column; }
+  .ranking-actions { width: 100%; }
+  .author-podium { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+}
+@media (max-width: 760px) {
+  .topbar { align-items: flex-start; flex-direction: column; gap: 12px; padding: 18px 4vw; }
+  nav { width: 100%; }
+  nav a { padding: 8px 10px; }
+  .container { width: 92vw; padding: 32px 0 56px; }
+  .hero { margin-bottom: 22px; }
+  .panel { padding: 18px; }
+  .panel-heading { align-items: flex-start; flex-wrap: wrap; }
+  .author-podium { grid-template-columns: 1fr; }
+  .ranking-table td:nth-child(2) { min-width: 300px; }
+}
+@media (max-width: 460px) {
+  h1, .article-title { font-size: 28px; }
+  .cards { grid-template-columns: 1fr; }
+  .ranking-actions { align-items: stretch; flex-wrap: wrap; }
+  .ranking-actions select { flex: 1; }
+  .button { padding: 10px 13px; }
+  nav { gap: 4px; }
+  nav a { padding: 7px 8px; font-size: 13px; }
+  .panel { padding: 16px; }
+}
