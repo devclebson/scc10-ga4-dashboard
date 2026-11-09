@@ -7,6 +7,7 @@ import { enrichArticle, getArticleDetail, normalizeTitle, syncArticleMetadata, s
 import { createAllowedOrigins } from './services/allowed-origins.js';
 import { createReportCache } from './services/report-cache.js';
 import { resolveArticlePathsFromSitemap } from './services/sitemap.js';
+import { resolveAuthorProfile } from './services/author-profile.js';
 
 const PORT = Number(process.env.PORT || 3001);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -270,6 +271,19 @@ const server = createServer(async (req, res) => {
         articles = Object.fromEntries(titles.map(title => [title, enrichArticle(propertyId, title)]));
       }
       sendJson(res, 200, { articles });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/authors/profiles') {
+      const body = await readJson(req);
+      const authors = Array.isArray(body.authors) ? body.authors.slice(0, 10) : [];
+      const profiles = {};
+      for (const author of authors) {
+        const name = String(author?.name || '').trim();
+        if (!name) continue;
+        profiles[name] = await resolveAuthorProfile(name, author.pagePath || '');
+      }
+      sendJson(res, 200, { profiles });
       return;
     }
 

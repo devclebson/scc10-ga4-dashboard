@@ -559,7 +559,25 @@
       background: var(--surface);
     }
     .author-podium-card strong { font-size: 18px; }
-    .author-podium-card span:not(.author-medal), .author-podium-card small { color: var(--text-muted); }
+    .author-podium-card strong a { color: inherit; text-decoration: none; }
+    .author-podium-card strong a:hover { text-decoration: underline; }
+    .author-avatar {
+      width: 88px;
+      height: 88px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid var(--border);
+      background: #eff6ff;
+    }
+    .author-avatar-fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .author-podium-card span:not(.author-medal):not(.author-avatar), .author-podium-card small { color: var(--text-muted); }
     .author-medal { font-size: 25px; }
     .authors-table-panel { padding: 20px; }
     .authors-table a { color: var(--primary); text-decoration: none; }

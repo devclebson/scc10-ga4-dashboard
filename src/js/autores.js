@@ -36,9 +36,33 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
 
-function render(authors) {
-  podiumEl.innerHTML = authors.slice(0, 3).map((author, index) => `<article class="author-podium-card podium-${index + 1}"><span class="author-medal">${['🥇', '🥈', '🥉'][index]}</span><strong>${escapeHtml(author.author)}</strong><span>${number(author.views)} visualizações</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`).join('');
+function initials(name) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+}
+
+function render(authors, profiles = {}) {
+  podiumEl.innerHTML = authors.slice(0, 3).map((author, index) => {
+    const profile = profiles[author.author] || {};
+    const avatar = profile.imageUrl
+      ? `<img class="author-avatar" src="${escapeHtml(profile.imageUrl)}" alt="Foto de ${escapeHtml(author.author)}">`
+      : `<span class="author-avatar author-avatar-fallback">${escapeHtml(initials(author.author))}</span>`;
+    const name = profile.profileUrl
+      ? `<a href="${escapeHtml(profile.profileUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(author.author)}</a>`
+      : escapeHtml(author.author);
+    return `<article class="author-podium-card podium-${index + 1}"><span class="author-medal">${['🥇', '🥈', '🥉'][index]}</span>${avatar}<strong>${name}</strong><span>${number(author.views)} visualizações</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`;
+  }).join('');
   bodyEl.innerHTML = authors.map((author, index) => `<tr><td>${index + 1}</td><td><strong>${escapeHtml(author.author)}</strong></td><td>${author.publications}</td><td style="text-align:right;font-weight:700">${number(author.views)}</td><td>${author.topArticle ? `<a href="materia.html#propertyId=${encodeURIComponent(window.__propertyId)}&title=${encodeURIComponent(author.topArticle.title)}&path=${encodeURIComponent(author.topArticle.pagePath || '')}">${escapeHtml(author.topArticle.title)}</a>` : '--'}</td></tr>`).join('');
+}
+
+async function loadProfiles(authors) {
+  const response = await fetch(`${API_BASE}/api/authors/profiles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ authors: authors.slice(0, 3).map(author => ({ name: author.author, pagePath: author.topArticle?.pagePath || '' })) })
+  });
+  if (!response.ok) return {};
+  const data = await response.json();
+  return data.profiles || {};
 }
 
 async function loadRanking() {
@@ -68,7 +92,8 @@ async function loadRanking() {
     const data = await response.json();
     if (!response.ok || data.error) throw new Error(data.error?.message || 'Não foi possível carregar o ranking de autores.');
     const authors = aggregateAuthorRows(data.rows, { publishedFrom: period.publishedFrom, publishedTo: period.publishedTo });
-    render(authors);
+    const profiles = await loadProfiles(authors).catch(() => ({}));
+    render(authors, profiles);
     statusEl.textContent = `${authors.length} autores encontrados · ${data.rowCount || 0} linhas do relatório · período: ${rangeEl.options[rangeEl.selectedIndex].text}`;
     statusEl.className = 'article-detail-status';
     contentEl.classList.remove('hidden');
