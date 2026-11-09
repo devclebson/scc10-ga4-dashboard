@@ -10,6 +10,7 @@ nav a:hover, nav a.active { color: white; background: #285bc4; }
 .hero { margin-bottom: 28px; }
 .eyebrow { margin: 0 0 8px; color: #2b75c9; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
 h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 48px); }
+.article-title { max-width: 1120px; font-size: clamp(28px, 3.6vw, 38px); line-height: 1.18; }
 .hero p:last-child { max-width: 720px; color: #5f6f8d; font-size: 17px; line-height: 1.6; }
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .card, .empty-state { background: white; border: 1px solid #e2e8f3; border-radius: 16px; box-shadow: 0 8px 24px #193b7110; }
