@@ -64,12 +64,15 @@ O ranking realtime existente está funcionando com snapshots do backend. A branc
 
 ## Próxima etapa imediata
 
+- Validar visualmente a tela `autores.html` com o relatório histórico real.
 - Remover código morto do fluxo OAuth legado depois da homologação.
 - Restringir a regra sudo temporária criada para o usuário de deploy.
 
 Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou 392 dimensões e 114.506 registros; as dimensões técnicas de categoria, autor e publicação retornaram dados; o dashboard carregou dados realtime reais; o coletor manteve 500 snapshots; o Histórico Local foi confirmado após múltiplos ciclos; e o fallback retornou `/page/3445/` para `Página Inicial`.
 
 A investigação dos títulos recentes sem URL mostrou que o título exibido no realtime pode não aparecer com correspondência exata no relatório histórico de 30 dias. O sistema agora consulta os sitemaps recentes do SCC10, usa somente caminhos encontrados no sitemap e mantém o fallback histórico do GA4 para os demais metadados.
+
+Ranking de autores iniciado em `autores.html`: período mês atual, pódio, ranking por visualizações, publicações distintas por título e matéria de maior alcance. A primeira versão não trata a soma de usuários por matéria como usuários únicos do período.
 
 ## Backend e coleta
 
