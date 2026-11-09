@@ -99,11 +99,15 @@ O Node agora persiste eventos de execução em `collector_runs`, incluindo statu
 
 ### Fase 4 — Migração dos serviços GA4
 
+Status: EM ANDAMENTO.
+
 - criar cliente GA4 Python com Service Account;
 - migrar relatório histórico de matéria;
 - comparar respostas Node e Flask;
 - preservar fallback realtime quando o relatório histórico estiver vazio;
 - manter cache e limites de quota explícitos.
+
+O relatório histórico de tráfego por matéria já está validado com dados reais. O cache em memória por propriedade, caminho e período foi adicionado ao serviço Flask; a migração de quota e dos demais relatórios ainda está pendente.
 
 ### Fase 5 — Migração do worker/coletor
 

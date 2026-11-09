@@ -66,6 +66,8 @@ O ranking realtime existente está funcionando com snapshots do backend. A branc
 
 - Validar visualmente a edição da configuração com o Flask autenticado.
 - Validar visualmente o diagnóstico operacional detalhado.
+- Integrar cache de relatórios históricos no serviço GA4 Flask.
+- Migrar os demais relatórios históricos e revisar quota.
 - Manter o intervalo do coletor fora da tela até o worker que o consome ser migrado.
 - Atualizar o inventário antes de arquivar qualquer arquivo do runtime Node.
 
