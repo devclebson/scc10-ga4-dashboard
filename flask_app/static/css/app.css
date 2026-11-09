@@ -34,6 +34,8 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 40px); line-height: 1.2; lett
 .card { padding: 22px; display: grid; gap: 12px; }
 .card span { color: var(--color-muted); font-size: 13px; }
 .card strong { font-size: 24px; line-height: 1.2; }
+#summary .card { min-height: 112px; }
+#summary .card strong { font-size: 28px; }
 .empty-state { padding: 30px; color: #667694; }
 .hidden { display: none !important; }
 .error { color: #b42318; }
@@ -55,14 +57,14 @@ h1 { margin: 0 0 10px; font-size: clamp(30px, 4vw, 40px); line-height: 1.2; lett
 .panel h2 { margin: 0; font-size: 20px; line-height: 1.3; }
 .panel-heading span { color: #7c89a3; font-size: 13px; }
 .ranking-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
-.ranking-list li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #edf0f6; }
+.ranking-list li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; min-height: 66px; padding: 12px 0; border-bottom: 1px solid var(--color-row-border); }
 .ranking-list li:last-child { border-bottom: 0; }
 .rank-number { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #e8f0ff; color: #225db1; font-weight: 800; }
-.ranking-list strong { display: block; line-height: 1.35; }
-.ranking-list small { display: block; margin-top: 5px; color: #7c89a3; }
-.channel-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin: 16px 0; }
+.ranking-list strong { display: block; color: var(--color-text); font-size: 14px; line-height: 1.35; }
+.ranking-list small { display: block; margin-top: 5px; color: #7c89a3; font-size: 12px; }
+.channel-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin: 16px 0; font-size: 14px; }
 .channel-row strong { color: #245fb8; }
-.progress { grid-column: 1 / -1; height: 7px; overflow: hidden; border-radius: 99px; background: #eaf0f8; }
+.progress { grid-column: 1 / -1; height: 8px; overflow: hidden; border-radius: 99px; background: #eaf0f8; }
 .progress i { display: block; height: 100%; border-radius: inherit; background: #2c7bd0; }
 .minute-chart { display: flex; align-items: end; gap: 4px; height: 180px; padding: 12px 0 0; border-bottom: 1px solid #dfe6f1; }
 .bar-wrap { display: flex; align-items: end; flex: 1; height: 100%; min-width: 3px; }
