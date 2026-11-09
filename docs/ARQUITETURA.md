@@ -205,7 +205,7 @@ Rotas Flask iniciais:
 /api/health        /api/config       /api/dashboard/summary
 ```
 
-A primeira fatia lê snapshots e configurações do SQLite existente. O GA4, autenticação, coletor e cálculos de ranking continuam no Node até serem migrados e comparados. Para execução local:
+A primeira fatia lê snapshots e configurações do SQLite existente. O dashboard realtime já foi migrado para o template Flask, com cards, ranking das notícias, canais e série por minuto. O GA4, autenticação, coletor e cálculos de ranking editorial continuam no Node até serem migrados e comparados. Para execução local:
 
 ```text
 uv venv .venv

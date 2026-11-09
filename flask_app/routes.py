@@ -47,15 +47,7 @@ def health():
 @api.get('/dashboard/summary')
 def dashboard_summary():
     repository = current_app.extensions['repository']
-    property_id = current_app.config.get('PROPERTY_ID')
-    snapshots = repository.latest_snapshots(property_id, limit=30)
-    latest = snapshots[0] if snapshots else None
-    return jsonify({
-        'propertyId': property_id,
-        'latest': latest,
-        'snapshots': snapshots,
-        'articlesCached': repository.article_count(property_id),
-    })
+    return jsonify(repository.dashboard_data(current_app.config.get('PROPERTY_ID')))
 
 
 @api.get('/config')

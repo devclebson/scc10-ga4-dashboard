@@ -42,3 +42,29 @@ class SQLiteRepository:
                 'SELECT COUNT(*) FROM articles WHERE (? IS NULL OR property_id = ?)',
                 (property_id, property_id),
             ).fetchone()[0]
+
+    def dashboard_data(self, property_id: str | None):
+        snapshots = self.latest_snapshots(property_id, limit=1)
+        if not snapshots:
+            return {'latest': None, 'topPages': [], 'channelsToday': [], 'minuteSeries': [], 'articlesCached': 0}
+        latest = snapshots[0]
+        with self.connect() as connection:
+            payload_json = connection.execute(
+                'SELECT payload_json FROM realtime_snapshots WHERE id = ?', (latest['id'],)
+            ).fetchone()[0]
+        try:
+            payload = __import__('json').loads(payload_json)
+        except (TypeError, ValueError):
+            payload = {}
+        top_pages = [
+            row for row in payload.get('topPages', [])
+            if row.get('title') not in {'(other)', '(not set)', 'SCC10 Notícia'}
+        ]
+        top_pages.sort(key=lambda row: int(row.get('views', 0)), reverse=True)
+        return {
+            'latest': latest,
+            'topPages': top_pages[:20],
+            'channelsToday': payload.get('channelsToday', []),
+            'minuteSeries': payload.get('minuteSeries', []),
+            'articlesCached': self.article_count(property_id),
+        }

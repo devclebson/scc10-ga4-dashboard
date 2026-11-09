@@ -1,15 +1,39 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard | SCC10 Analytics{% endblock %}
+{% block title %}Dashboard realtime | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero"><p class="eyebrow">Nova arquitetura Flask</p><h1>Dashboard editorial</h1><p>Estrutura inicial com rotas, template base e leitura do SQLite existente.</p></section>
-<section class="cards" id="summary"><div class="card"><span>Última coleta</span><strong id="captured-at">Carregando...</strong></div><div class="card"><span>Usuários ativos · 30 min</span><strong id="active-users">--</strong></div><div class="card"><span>Visualizações · 30 min</span><strong id="page-views">--</strong></div><div class="card"><span>Matérias em cache</span><strong id="articles-cached">--</strong></div></section>
+<section class="hero dashboard-hero"><div><p class="eyebrow">Monitor realtime</p><h1>Dashboard editorial</h1><p>Dados carregados do snapshot mais recente do coletor GA4.</p></div><button id="refresh" class="button">Atualizar</button></section>
+<div id="status" class="status">Carregando snapshot...</div>
+<section class="cards" id="summary"><div class="card"><span>Última coleta</span><strong id="captured-at">--</strong></div><div class="card"><span>Leitores · 5 min</span><strong id="active-users-5m">--</strong></div><div class="card"><span>Leitores · 30 min</span><strong id="active-users-30m">--</strong></div><div class="card"><span>Visualizações · 30 min</span><strong id="page-views">--</strong></div></section>
+<section class="dashboard-grid">
+  <article class="panel"><div class="panel-heading"><h2>Notícias mais lidas agora</h2><span id="articles-count"></span></div><ol id="top-pages" class="ranking-list"></ol></article>
+  <article class="panel"><div class="panel-heading"><h2>Canais de hoje</h2></div><div id="channels" class="channels-list"></div></article>
+</section>
+<section class="panel"><div class="panel-heading"><h2>Leitores por minuto</h2><span>últimos 30 minutos</span></div><div id="minute-chart" class="minute-chart"></div></section>
 <script>
-fetch('{{ url_for("api.dashboard_summary") }}').then(r => r.json()).then(data => {
+const endpoint = '{{ url_for("api.dashboard_summary") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+function render(data) {
   const latest = data.latest || {};
-  document.querySelector('#captured-at').textContent = latest.captured_at || 'Sem coleta';
-  document.querySelector('#active-users').textContent = latest.active_users_30m ?? '--';
-  document.querySelector('#page-views').textContent = latest.page_views_30m ?? '--';
-  document.querySelector('#articles-cached').textContent = data.articlesCached ?? 0;
-}).catch(() => document.querySelector('#captured-at').textContent = 'Erro ao carregar');
+  document.querySelector('#captured-at').textContent = latest.captured_at ? new Date(latest.captured_at).toLocaleTimeString('pt-BR') : 'Sem coleta';
+  document.querySelector('#active-users-5m').textContent = number(latest.active_users_5m);
+  document.querySelector('#active-users-30m').textContent = number(latest.active_users_30m);
+  document.querySelector('#page-views').textContent = number(latest.page_views_30m);
+  document.querySelector('#articles-count').textContent = `${data.topPages.length} notícias`;
+  document.querySelector('#top-pages').innerHTML = data.topPages.map((article, index) => `<li><span class="rank-number">${index + 1}</span><div><strong>${escapeHtml(article.title)}</strong><small>${number(article.users)} leitores · ${number(article.views)} visualizações</small></div></li>`).join('') || '<li class="empty">Nenhuma notícia disponível.</li>';
+  document.querySelector('#channels').innerHTML = data.channelsToday.map(channel => `<div class="channel-row"><span>${escapeHtml(channel.channel)}</span><strong>${channel.pct}%</strong><div class="progress"><i style="width:${Math.min(Number(channel.pct) || 0, 100)}%"></i></div></div>`).join('') || '<p class="empty">Nenhum canal disponível.</p>';
+  const minutes = [...data.minuteSeries].reverse();
+  const max = Math.max(...minutes.map(item => Number(item.users) || 0), 1);
+  document.querySelector('#minute-chart').innerHTML = minutes.map(item => `<div class="bar-wrap" title="${escapeHtml(item.minute)}: ${number(item.users)} leitores"><span class="bar" style="height:${Math.max((Number(item.users) || 0) / max * 100, 3)}%"></span></div>`).join('') || '<p class="empty">Nenhuma série disponível.</p>';
+  document.querySelector('#status').textContent = `Snapshot atualizado em ${latest.captured_at ? new Date(latest.captured_at).toLocaleString('pt-BR') : '--'} · ${number(data.articlesCached)} matérias em cache`;
+}
+async function load() {
+  const status = document.querySelector('#status'); status.textContent = 'Atualizando snapshot...';
+  try { const response = await fetch(endpoint, { cache: 'no-store' }); if (!response.ok) throw new Error('Não foi possível carregar o snapshot.'); render(await response.json()); }
+  catch (error) { status.textContent = error.message; }
+}
+document.querySelector('#refresh').addEventListener('click', load);
+load();
+setInterval(load, 30000);
 </script>
 {% endblock %}
