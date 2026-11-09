@@ -74,6 +74,18 @@ A investigação dos títulos recentes sem URL mostrou que o título exibido no 
 
 Ranking de autores iniciado em `autores.html`: período mês atual, pódio, ranking por visualizações de matérias publicadas no período, publicações distintas por título e matéria de maior alcance. Autores antigos que apenas recebem tráfego de matérias antigas ficam fora do recorte. A primeira versão não trata a soma de usuários por matéria como usuários únicos do período.
 
+## Migração Flask iniciada
+
+- Branch `migration/flask-structure` criada a partir de `develop`.
+- Flask 3.1 configurado em `requirements.txt`.
+- `flask_app/` criado com application factory, rotas, templates base e repository SQLite.
+- Menu compartilhado criado para Dashboard, Ranking, Autores e Configuração.
+- Rotas `/dashboard`, `/ranking`, `/autores`, `/materias/<id>` e `/configuracao` validadas.
+- `/api/dashboard/summary` já lê o snapshot mais recente e a quantidade real de matérias do SQLite existente.
+- Backend Node.js permanece intacto durante a migração.
+
+Próxima fatia: migrar o dashboard realtime para o template base Flask e criar o serviço Flask que consulta os snapshots sem duplicar a coleta GA4.
+
 ## Backend e coleta
 
 - Coletor independente do navegador implementado no backend.

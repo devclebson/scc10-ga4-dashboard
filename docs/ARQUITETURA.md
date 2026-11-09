@@ -173,3 +173,45 @@ Backend Node.js
               ▼
 Frontend do Monitor Editorial
 ```
+
+## Migração incremental para Flask
+
+A branch `migration/flask-structure` iniciou a nova camada Flask sem apagar o backend Node.js. O objetivo é migrar tela por tela, mantendo o banco SQLite e validando cada etapa antes de substituir o Node.
+
+Estrutura inicial criada:
+
+```text
+flask_app/
+├── __init__.py                 ← application factory
+├── config.py                   ← configuração por ambiente
+├── routes.py                   ← páginas e API Flask
+├── repositories/
+│   └── sqlite_repository.py    ← leitura isolada do SQLite
+├── templates/
+│   ├── base.html               ← menu compartilhado
+│   ├── dashboard.html
+│   ├── ranking.html
+│   ├── autores.html
+│   ├── materia.html
+│   └── configuracao.html
+└── static/css/app.css
+```
+
+Rotas Flask iniciais:
+
+```text
+/                  /dashboard       /ranking
+/autores           /materias/<id>   /configuracao
+/api/health        /api/config       /api/dashboard/summary
+```
+
+A primeira fatia lê snapshots e configurações do SQLite existente. O GA4, autenticação, coletor e cálculos de ranking continuam no Node até serem migrados e comparados. Para execução local:
+
+```text
+uv venv .venv
+uv pip install --python .venv/Scripts/python.exe -r requirements.txt
+.venv/Scripts/python.exe run_flask.py
+http://127.0.0.1:5000/dashboard
+```
+
+Próximas fatias: migrar o dashboard realtime, depois ranking editorial, autores, análise de matéria, autenticação administrativa e, por último, o worker do coletor. A troca do processo de produção só deve ocorrer depois de comparar respostas Node e Flask usando o mesmo SQLite e a mesma propriedade GA4.

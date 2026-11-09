@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero"><p class="eyebrow">Nova arquitetura Flask</p><h1>Dashboard editorial</h1><p>Estrutura inicial com rotas, template base e leitura do SQLite existente.</p></section>
+<section class="cards" id="summary"><div class="card"><span>Última coleta</span><strong id="captured-at">Carregando...</strong></div><div class="card"><span>Usuários ativos · 30 min</span><strong id="active-users">--</strong></div><div class="card"><span>Visualizações · 30 min</span><strong id="page-views">--</strong></div><div class="card"><span>Matérias em cache</span><strong id="articles-cached">--</strong></div></section>
+<script>
+fetch('{{ url_for("api.dashboard_summary") }}').then(r => r.json()).then(data => {
+  const latest = data.latest || {};
+  document.querySelector('#captured-at').textContent = latest.captured_at || 'Sem coleta';
+  document.querySelector('#active-users').textContent = latest.active_users_30m ?? '--';
+  document.querySelector('#page-views').textContent = latest.page_views_30m ?? '--';
+  document.querySelector('#articles-cached').textContent = data.articlesCached ?? 0;
+}).catch(() => document.querySelector('#captured-at').textContent = 'Erro ao carregar');
+</script>
+{% endblock %}
