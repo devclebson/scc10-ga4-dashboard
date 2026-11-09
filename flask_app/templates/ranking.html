@@ -16,7 +16,7 @@ async function load() {
     if (!response.ok) throw new Error('Não foi possível carregar o ranking.');
     const data = await response.json();
     document.querySelector('#total').textContent = `${number(data.totalViews)} visualizações nas matérias exibidas`;
-    document.querySelector('#ranking-body').innerHTML = data.articles.map((article, index) => `<tr><td class="rank-number">${index + 1}</td><td><strong>${escapeHtml(article.title)}</strong></td><td>${number(article.users)}</td><td><strong>${number(article.views)}</strong></td></tr>`).join('') || '<tr><td colspan="4">Nenhuma matéria disponível.</td></tr>';
+    document.querySelector('#ranking-body').innerHTML = data.articles.map((article, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><strong>${escapeHtml(article.title)}</strong></td><td>${number(article.users)}</td><td><strong>${number(article.views)}</strong></td></tr>`).join('') || '<tr><td colspan="4">Nenhuma matéria disponível.</td></tr>';
     status.textContent = `Snapshot atualizado em ${data.capturedAt ? new Date(data.capturedAt).toLocaleString('pt-BR') : '--'}`;
   } catch (error) { status.textContent = error.message; }
 }
