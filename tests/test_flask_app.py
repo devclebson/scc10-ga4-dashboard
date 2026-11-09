@@ -13,10 +13,13 @@ def test_routes_and_existing_sqlite(tmp_path):
           page_views_30m INTEGER, active_articles_count INTEGER, payload_json TEXT
         );
         CREATE TABLE app_settings (setting_key TEXT PRIMARY KEY, setting_value TEXT);
-        CREATE TABLE articles (id INTEGER PRIMARY KEY, property_id TEXT);
+        CREATE TABLE articles (
+          id INTEGER PRIMARY KEY, property_id TEXT, title TEXT, author TEXT,
+          historical_views INTEGER, published_at TEXT, page_path TEXT
+        );
         INSERT INTO realtime_snapshots VALUES (1, '123', '2026-11-09T12:00:00Z', 4, 9, 20, 3, '{"topPages": [{"title": "Teste", "users": 2, "views": 4}], "channelsToday": [], "minuteSeries": []}');
         INSERT INTO app_settings VALUES ('propertyId', '123');
-        INSERT INTO articles VALUES (1, '123');
+        INSERT INTO articles VALUES (1, '123', 'Teste', 'Autora Teste', 7, '2026-11-09', '/teste/');
     ''')
     connection.commit()
     connection.close()
@@ -38,3 +41,6 @@ def test_routes_and_existing_sqlite(tmp_path):
     ranking = client.get('/api/ranking?limit=1').get_json()
     assert ranking['articles'][0]['title'] == 'Teste'
     assert ranking['totalViews'] == 4
+    authors = client.get('/api/autores?period=month').get_json()
+    assert authors['authors'][0]['author'] == 'Autora Teste'
+    assert authors['authors'][0]['publications'] == 1

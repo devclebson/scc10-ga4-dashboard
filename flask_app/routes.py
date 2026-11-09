@@ -60,6 +60,15 @@ def ranking_data():
     return jsonify(repository.ranking_data(current_app.config.get('PROPERTY_ID'), limit))
 
 
+@api.get('/autores')
+def authors_data():
+    repository = current_app.extensions['repository']
+    period = request.args.get('period', 'month')
+    if period not in {'today', '7days', 'month', '90days'}:
+        period = 'month'
+    return jsonify(repository.authors_data(current_app.config.get('PROPERTY_ID'), period))
+
+
 @api.get('/config')
 def config():
     repository = current_app.extensions['repository']

@@ -78,3 +78,47 @@ class SQLiteRepository:
             'totalViews': total_views,
             'articles': articles,
         }
+
+    def authors_data(self, property_id: str | None, period: str = 'month'):
+        from datetime import date, timedelta
+
+        today = date.today()
+        if period == 'today':
+            start = today
+        elif period == '7days':
+            start = today - timedelta(days=6)
+        elif period == '90days':
+            start = today - timedelta(days=89)
+        else:
+            start = today.replace(day=1)
+        if not self.database_path.exists():
+            return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': []}
+        with self.connect() as connection:
+            rows = connection.execute(
+                '''SELECT author, title, historical_views, published_at, page_path
+                   FROM articles
+                   WHERE (? IS NULL OR property_id = ?)
+                     AND author IS NOT NULL AND TRIM(author) != ''
+                     AND published_at >= ? AND published_at <= ?''',
+                (property_id, property_id, start.isoformat(), today.isoformat()),
+            ).fetchall()
+        grouped = {}
+        for row in rows:
+            author = row['author'].strip()
+            item = grouped.setdefault(author, {'author': author, 'views': 0, 'titles': {}, 'topArticle': None})
+            views = int(row['historical_views'] or 0)
+            title = row['title']
+            item['views'] += views
+            item['titles'][title] = item['titles'].get(title, 0) + views
+            if not item['topArticle'] or views > item['topArticle']['views']:
+                item['topArticle'] = {'title': title, 'views': views, 'pagePath': row['page_path']}
+        authors = []
+        for item in grouped.values():
+            authors.append({
+                'author': item['author'],
+                'views': item['views'],
+                'publications': len(item['titles']),
+                'topArticle': item['topArticle'],
+            })
+        authors.sort(key=lambda item: (-item['views'], -item['publications'], item['author']))
+        return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': authors}
