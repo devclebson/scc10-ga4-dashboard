@@ -1,4 +1,4 @@
-import { upsertArticle, findArticle, findArticleByPath } from '../db.js';
+import { upsertArticle, findArticle, findArticleByPath, getSnapshots } from '../db.js';
 import { requestGa4Report } from './ga4-client.js';
 
 const ARTICLE_DIMENSIONS = [
@@ -152,6 +152,26 @@ export async function getArticleDetail(propertyId, { title, pagePath, startDate 
     throw new Error(result.data.error?.message || 'Falha ao consultar as origens da matéria.');
   }
 
+  const snapshots = getSnapshots({ propertyId: normalizedPropertyId, limit: 1 });
+  const latestSnapshot = snapshots[0];
+  let realtime = null;
+  if (latestSnapshot) {
+    try {
+      const payload = JSON.parse(latestSnapshot.payload_json || '{}');
+      const normalizedTarget = normalizeTitle(title || cached?.title || '');
+      const page = (payload.topPages || []).find(item => normalizeTitle(item.title) === normalizedTarget);
+      if (page) {
+        realtime = {
+          capturedAt: latestSnapshot.captured_at,
+          users: Number(page.users || 0),
+          views: Number(page.views || 0)
+        };
+      }
+    } catch {
+      realtime = null;
+    }
+  }
+
   return {
     article: cached ? {
       title: cached.title,
@@ -161,7 +181,8 @@ export async function getArticleDetail(propertyId, { title, pagePath, startDate 
       publishedAt: cached.published_at,
       historicalViews: cached.historical_views
     } : { title: title || resolvedPath, pagePath: resolvedPath },
-    traffic: result.data.rows || []
+    traffic: result.data.rows || [],
+    realtime
   };
 }
 

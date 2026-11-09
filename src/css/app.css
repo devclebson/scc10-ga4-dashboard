@@ -515,6 +515,15 @@
       margin-right: 5px;
       color: var(--text-muted);
     }
+    .article-detail-live {
+      margin: 0 0 20px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: #ecfdf5;
+      color: #047857;
+      font-size: 13px;
+      line-height: 1.5;
+    }
     .article-detail-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
