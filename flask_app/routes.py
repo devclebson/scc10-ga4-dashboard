@@ -1,5 +1,7 @@
 from flask import Blueprint, current_app, jsonify, render_template, request
 
+from .services.ga4_service import configured as ga4_configured, run_article_traffic
+
 pages = Blueprint('pages', __name__)
 api = Blueprint('api', __name__, url_prefix='/api')
 
@@ -75,6 +77,14 @@ def article_detail(article_id):
     detail = repository.article_detail(article_id)
     if not detail:
         return jsonify({'error': 'Matéria não encontrada.'}), 404
+    article = detail['article']
+    if article.get('page_path') and ga4_configured():
+        try:
+            detail['traffic'] = run_article_traffic(article['property_id'], article['page_path'])['rows']
+            detail['trafficStatus'] = 'loaded'
+        except Exception as error:
+            detail['trafficStatus'] = 'ga4-error'
+            detail['trafficError'] = str(error)
     return jsonify(detail)
 
 

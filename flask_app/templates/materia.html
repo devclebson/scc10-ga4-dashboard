@@ -6,7 +6,7 @@
 <section id="detail" class="hidden">
   <div class="cards"><div class="card"><span>Autor</span><strong id="author">--</strong></div><div class="card"><span>Categoria</span><strong id="category">--</strong></div><div class="card"><span>Publicada em</span><strong id="published">--</strong></div><div class="card"><span>Visualizações históricas</span><strong id="historical">--</strong></div></div>
   <section class="panel"><div class="panel-heading"><h2>Dados realtime</h2><span id="realtime-at"></span></div><div class="cards"><div class="card"><span>Leitores</span><strong id="realtime-users">--</strong></div><div class="card"><span>Visualizações</span><strong id="realtime-views">--</strong></div></div></section>
-  <section class="panel"><div class="panel-heading"><h2>Origens de tráfego</h2></div><div id="traffic-status" class="empty-state">O serviço Flask de consulta histórica ainda será conectado. Os dados da matéria e realtime já estão disponíveis.</div></section>
+  <section class="panel"><div class="panel-heading"><h2>Origens de tráfego</h2><span id="traffic-total"></span></div><div id="traffic-status" class="empty-state">Carregando origens históricas...</div><div class="table-wrap"><table id="traffic-table" class="ranking-table hidden"><thead><tr><th>Canal</th><th>Visualizações</th><th>Sessões</th><th>Leitores</th><th>Participação</th></tr></thead><tbody></tbody></table></div></section>
 </section>
 <script>
 const endpoint = '{{ url_for("api.article_detail", article_id=article_id) }}';
@@ -26,7 +26,14 @@ async function load() {
     document.querySelector('#historical').textContent = number(article.historical_views);
     document.querySelector('#realtime-users').textContent = data.realtime ? number(data.realtime.users) : '--';
     document.querySelector('#realtime-views').textContent = data.realtime ? number(data.realtime.views) : '--';
-    document.querySelector('#realtime-at').textContent = data.realtime?.capturedAt ? `capturado em ${new Date(data.realtime.capturedAt).toLocaleString('pt-BR')}` : 'Sem ocorrência no último snapshot';
+    document.querySelector('#realtime-at').textContent = data.realtime?.capturedAt ? `capturado em ${new Date(data.realtime.capturedAt).toLocaleString('pt-BR')}` : 'Sem ocorrência no último snapshot realtime';
+    const trafficRows = data.traffic || [];
+    document.querySelector('#traffic-total').textContent = trafficRows.length ? `${number(trafficRows.reduce((sum, row) => sum + Number(row.views || 0), 0))} visualizações` : '';
+    document.querySelector('#traffic-status').textContent = data.trafficStatus === 'loaded' ? 'Dados históricos consultados no GA4 pelo Flask.' : (data.trafficError || 'Origens históricas ainda indisponíveis.');
+    if (trafficRows.length) {
+      document.querySelector('#traffic-table tbody').innerHTML = trafficRows.map(row => `<tr><td>${text(row.channel)}</td><td>${number(row.views)}</td><td>${number(row.sessions)}</td><td>${number(row.users)}</td><td>${row.pct}%</td></tr>`).join('');
+      document.querySelector('#traffic-table').classList.remove('hidden');
+    }
     document.querySelector('#status').textContent = data.realtime ? 'Dados locais e realtime carregados.' : 'Dados históricos carregados; a matéria não apareceu no último snapshot realtime.';
     document.querySelector('#detail').classList.remove('hidden');
   } catch (error) { document.querySelector('#status').textContent = error.message; document.querySelector('#status').classList.add('error'); }
