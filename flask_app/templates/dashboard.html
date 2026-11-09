@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard realtime | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero dashboard-hero"><div><p class="eyebrow">Monitor realtime</p><h1>Dashboard editorial</h1><p>Dados carregados do snapshot mais recente do coletor GA4.</p></div><button id="refresh" class="button">Atualizar</button></section>
+<section class="hero dashboard-hero"><div><p class="eyebrow">Monitor realtime</p><h1>Dashboard editorial</h1><p>Dados carregados do snapshot mais recente do coletor GA4.</p></div><div class="dashboard-actions"><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
 <div id="status" class="status">Carregando snapshot...</div>
 <section class="cards" id="summary"><div class="card"><span>Última coleta</span><strong id="captured-at">--</strong></div><div class="card"><span>Leitores · 5 min</span><strong id="active-users-5m">--</strong></div><div class="card"><span>Leitores · 30 min</span><strong id="active-users-30m">--</strong></div><div class="card"><span>Visualizações · 30 min</span><strong id="page-views">--</strong></div></section>
 <section class="dashboard-grid">
@@ -33,6 +34,18 @@ async function load() {
   catch (error) { status.textContent = error.message; }
 }
 document.querySelector('#refresh').addEventListener('click', load);
+document.querySelector('#fullscreen').addEventListener('click', async () => {
+  try {
+    await document.documentElement.requestFullscreen();
+  } catch {
+    document.body.classList.add('fullscreen-active');
+  }
+});
+document.querySelector('#fullscreen-exit').addEventListener('click', async () => {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  document.body.classList.remove('fullscreen-active');
+});
+document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fullscreen-active', Boolean(document.fullscreenElement)));
 load();
 setInterval(load, 30000);
 </script>
