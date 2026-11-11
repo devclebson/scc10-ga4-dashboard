@@ -1,6 +1,37 @@
 # Instalar o SCC10 em container Ubuntu no Proxmox
 
-Procedimento para um container **LXC Ubuntu Server 24.04** de teste, com Node.js 24, Nginx e HTTPS. O container roda o coletor e a API; o Nginx entrega apenas os arquivos públicos e encaminha `/api/` para `127.0.0.1:3001`. Não é necessário Docker nem habilitar nesting no LXC. Exemplos usam o DNS `scc10.exemplo.interno` e a propriedade GA4 `309943616`: substitua pelos seus valores. Execute no Ubuntu, não no host Proxmox.
+Procedimento para um container **LXC Ubuntu Server 24.04** de teste. O runtime Flask usa Gunicorn na porta local `5000`; o Nginx termina HTTPS e encaminha toda a aplicação para o Flask. O Node permanece como rollback até a validação final.
+
+## Migração de serviço Node para Flask
+
+Os arquivos de preparação são:
+
+- `deploy/scc10-flask.service` — Gunicorn para dashboard/API Flask;
+- `deploy/scc10-flask-collector.service` — um ciclo realtime por execução;
+- `deploy/scc10-flask-collector.timer` — agenda um ciclo por minuto;
+- `deploy/scc10-flask.nginx.conf.example` — proxy HTTPS para `127.0.0.1:5000`;
+- `deploy/scc10-flask.env.example` — ambiente Flask sem credenciais no repositório.
+
+No container, após copiar o código e instalar dependências:
+
+```bash
+sudo python3 -m venv /opt/scc10/venv
+sudo /opt/scc10/venv/bin/pip install --requirement /opt/scc10/app/requirements.txt
+sudo install -o root -g scc10 -m 0640 deploy/scc10-flask.env.example /etc/scc10/scc10-flask.env
+sudoedit /etc/scc10/scc10-flask.env
+sudo install -o root -g root -m 0644 deploy/scc10-flask.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 deploy/scc10-flask-collector.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 deploy/scc10-flask-collector.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now scc10-flask
+sudo systemctl enable --now scc10-flask-collector.timer
+sudo systemctl status scc10-flask --no-pager
+sudo systemctl status scc10-flask-collector.timer --no-pager
+curl -fsS http://127.0.0.1:5000/api/health
+```
+
+Antes de trocar o Nginx, validar o Flask localmente, fazer backup de `/var/lib/scc10/scc10.sqlite` e confirmar que o timer registrou um `collector_runs` com `success`. Só depois instalar `deploy/scc10-flask.nginx.conf.example`, executar `sudo nginx -t` e recarregar o Nginx. Não apagar o serviço Node até a validação HTTPS, login, dashboard, diagnóstico e rollback.
+
 
 > A branch desta entrega é `feat/deploy-ubuntu-proxmox`. Até que seu PR seja integrado a `develop`, instale essa branch para testar. O cache de relatórios da PR #3 está em outra branch; este checkout não o inclui até a integração dos PRs em `develop`. `master` continua sendo produção e não deve ser usada para este teste.
 
@@ -14,7 +45,7 @@ Use um usuário Ubuntu com `sudo`; execute os comandos seguintes nesse CT.
 
 ```bash
 sudo apt update
-sudo apt install -y ca-certificates curl git nginx rsync openssl sqlite3
+sudo apt install -y ca-certificates curl git nginx rsync openssl sqlite3 python3-venv
 # Repositório NodeSource para Node.js 24 (verifique o script antes de executá-lo):
 curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource-setup.sh
 less /tmp/nodesource-setup.sh
