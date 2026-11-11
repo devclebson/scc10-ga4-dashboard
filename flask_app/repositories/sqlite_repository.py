@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sqlite3
 from datetime import datetime, timezone
 
@@ -8,12 +9,48 @@ from ..services.author_profile import resolve_author_profile
 class SQLiteRepository:
     def __init__(self, database_path: Path):
         self.database_path = Path(database_path)
+        if not self.database_path.exists():
+            self._ensure_collector_tables()
         self._ensure_author_profiles_table()
+        self._ensure_articles_table()
+        self._ensure_settings_table()
 
     def connect(self):
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
         return connection
+
+    def _ensure_collector_tables(self):
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            connection.executescript('''
+                CREATE TABLE IF NOT EXISTS realtime_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    property_id TEXT NOT NULL,
+                    captured_at TEXT NOT NULL,
+                    active_users_5m INTEGER NOT NULL DEFAULT 0,
+                    active_users_30m INTEGER NOT NULL DEFAULT 0,
+                    page_views_30m INTEGER NOT NULL DEFAULT 0,
+                    active_articles_count INTEGER NOT NULL DEFAULT 0,
+                    payload_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_realtime_snapshots_property_time
+                    ON realtime_snapshots(property_id, captured_at);
+                CREATE TABLE IF NOT EXISTS collector_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    property_id TEXT NOT NULL,
+                    started_at TEXT NOT NULL,
+                    finished_at TEXT,
+                    status TEXT NOT NULL,
+                    duration_ms INTEGER,
+                    snapshot_id INTEGER,
+                    rows_count INTEGER,
+                    error_message TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_collector_runs_property_time
+                    ON collector_runs(property_id, started_at);
+            ''')
+            connection.commit()
 
     def _ensure_author_profiles_table(self):
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -25,6 +62,50 @@ class SQLiteRepository:
                     image_url TEXT,
                     status TEXT NOT NULL DEFAULT 'pending',
                     checked_at TEXT NOT NULL
+                )
+            ''')
+            connection.commit()
+
+    def _ensure_articles_table(self):
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            existing = {
+                row['name'] for row in connection.execute('PRAGMA table_info(articles)')
+            }
+            if not existing:
+                connection.executescript('''
+                    CREATE TABLE articles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        property_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        normalized_title TEXT NOT NULL,
+                        page_path TEXT,
+                        category TEXT,
+                        author TEXT,
+                        published_at TEXT,
+                        historical_views INTEGER NOT NULL DEFAULT 0,
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(property_id, normalized_title)
+                    );
+                ''')
+            else:
+                if 'normalized_title' not in existing:
+                    connection.execute('ALTER TABLE articles ADD COLUMN normalized_title TEXT')
+                    connection.execute('UPDATE articles SET normalized_title = title WHERE normalized_title IS NULL')
+                if 'updated_at' not in existing:
+                    connection.execute('ALTER TABLE articles ADD COLUMN updated_at TEXT')
+            connection.execute(
+                'CREATE INDEX IF NOT EXISTS idx_articles_property_title ON articles(property_id, normalized_title)'
+            )
+            connection.commit()
+
+    def _ensure_settings_table(self):
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as connection:
+            connection.execute('''
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    setting_key TEXT PRIMARY KEY,
+                    setting_value TEXT NOT NULL
                 )
             ''')
             connection.commit()
@@ -84,6 +165,102 @@ class SQLiteRepository:
             for key, value in values.items():
                 parameters = (key, str(value), timestamp) if has_updated_at else (key, str(value))
                 connection.execute(statement, parameters)
+            connection.commit()
+
+    def save_snapshot(self, snapshot):
+        with self.connect() as connection:
+            cursor = connection.execute(
+                '''INSERT INTO realtime_snapshots (
+                       property_id, captured_at, active_users_5m,
+                       active_users_30m, page_views_30m, active_articles_count,
+                       payload_json
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (
+                    snapshot['property_id'],
+                    snapshot['captured_at'],
+                    int(snapshot.get('active_users_5m') or 0),
+                    int(snapshot.get('active_users_30m') or 0),
+                    int(snapshot.get('page_views_30m') or 0),
+                    int(snapshot.get('active_articles_count') or 0),
+                    json.dumps(snapshot.get('payload', {}), ensure_ascii=False),
+                ),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def start_collector_run(self, property_id, started_at):
+        with self.connect() as connection:
+            cursor = connection.execute(
+                'INSERT INTO collector_runs (property_id, started_at, status) VALUES (?, ?, ?)',
+                (property_id, started_at, 'running'),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def finish_collector_run(self, run_id, finished_at, status, duration_ms=None, snapshot_id=None, rows_count=None, error_message=None):
+        with self.connect() as connection:
+            connection.execute(
+                '''UPDATE collector_runs
+                   SET finished_at = ?, status = ?, duration_ms = ?, snapshot_id = ?,
+                       rows_count = ?, error_message = ?
+                   WHERE id = ?''',
+                (finished_at, status, duration_ms, snapshot_id, rows_count, error_message, run_id),
+            )
+            connection.commit()
+
+    def prune_snapshots(self, property_id, before_captured_at):
+        with self.connect() as connection:
+            cursor = connection.execute(
+                'DELETE FROM realtime_snapshots WHERE property_id = ? AND captured_at < ?',
+                (property_id, before_captured_at),
+            )
+            connection.commit()
+            return cursor.rowcount
+
+    def backup_database(self, destination):
+        destination = Path(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as source, sqlite3.connect(destination) as target:
+            source.backup(target)
+        return destination
+
+    def upsert_article(self, article):
+        timestamp = datetime.now(timezone.utc).isoformat()
+        values = (
+            article['property_id'], article['title'], article['normalized_title'],
+            article.get('page_path'), article.get('category'), article.get('author'),
+            article.get('published_at'), int(article.get('historical_views') or 0), timestamp,
+        )
+        with self.connect() as connection:
+            try:
+                connection.execute(
+                    '''INSERT INTO articles (
+                           property_id, title, normalized_title, page_path, category,
+                           author, published_at, historical_views, updated_at
+                       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       ON CONFLICT(property_id, normalized_title) DO UPDATE SET
+                           title = excluded.title, page_path = excluded.page_path,
+                           category = excluded.category, author = excluded.author,
+                           published_at = excluded.published_at,
+                           historical_views = excluded.historical_views,
+                           updated_at = excluded.updated_at''', values)
+            except sqlite3.OperationalError:
+                existing = connection.execute(
+                    'SELECT id FROM articles WHERE property_id = ? AND normalized_title = ?',
+                    values[:3:2],
+                ).fetchone()
+                if existing:
+                    connection.execute(
+                        '''UPDATE articles SET title = ?, page_path = ?, category = ?, author = ?,
+                           published_at = ?, historical_views = ?, updated_at = ? WHERE id = ?''',
+                        (values[1], values[3], values[4], values[5], values[6], values[7], values[8], existing['id']),
+                    )
+                else:
+                    connection.execute(
+                        '''INSERT INTO articles (
+                           property_id, title, normalized_title, page_path, category, author,
+                           published_at, historical_views, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', values)
             connection.commit()
 
     def article_count(self, property_id: str | None):

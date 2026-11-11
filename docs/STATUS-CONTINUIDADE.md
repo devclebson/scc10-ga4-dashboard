@@ -24,6 +24,9 @@ Atualizado em 9 de novembro de 2026.
 - Diagnóstico operacional validado com coletor Node real e SQLite compartilhado.
 - Relatório histórico de matéria validado com dados reais do GA4.
 - Cache histórico Flask validado: primeira consulta gera `miss`, segunda consulta gera `hit`.
+- Relatórios históricos Flask integrados ao dashboard: visão geral, canais, países, dispositivos, páginas, eventos e conversões.
+- Limite local de quota histórica validado: 60 chamadas reais por janela de 60 segundos, com diagnóstico e HTTP 429.
+- Coletor realtime Flask validado em SQLite isolado: ciclo único e dois ciclos sequenciais, ambos `success`, sem alterar o banco do Node.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas
@@ -33,6 +36,7 @@ Atualizado em 9 de novembro de 2026.
 - `git diff --check` passou.
 - Service Account local validada.
 - Relatório GA4 real respondeu HTTP 200.
+- `run_flask_collector.py --loop --interval 15 --cycles 2` gravou dois snapshots e duas execuções `success` em banco temporário.
 - Dashboard local carregou dados realtime.
 - `(other)` não apareceu no ranking local.
 
@@ -111,11 +115,11 @@ Não atualizar o container sem autorização explícita.
 
 ## Próximas etapas
 
-1. Continuar a migração dos relatórios históricos GA4 restantes.
-2. Migrar e revisar o controle de quota no Flask.
-3. Migrar o worker/coletor realtime para Flask, mantendo o Node como transição.
-4. Migrar retenção e backup do SQLite.
-5. Validar múltiplos ciclos do worker sem duplicação.
+1. Comparar múltiplos ciclos do worker Flask com o coletor Node no mesmo período.
+2. Validar o wrapper/agendamento externo com `-Cycles 1` em SQLite isolado.
+3. Validar retenção e backup do SQLite em ciclos contínuos.
+4. Fazer a validação visual completa do Dashboard, Ranking, Autores, Matéria e Configuração.
+5. Não migrar dados históricos do projeto Node: o novo projeto inicia seu cache a partir das próximas coletas do GA4.
 6. Só depois do corte completo, arquivar o runtime Node legado.
 7. Não atualizar o container sem autorização explícita e validação visual.
 

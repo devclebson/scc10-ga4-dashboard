@@ -61,6 +61,29 @@ npm run test:syntax
 git diff --check
 ```
 
+## Worker Flask em homologação
+
+Execução única pelo PowerShell, sem iniciar o coletor Node:
+
+```powershell
+& "$PWD\scripts\run-flask-collector.ps1" `
+  -PropertyId 309943616 `
+  -DatabasePath "$env:TEMP\scc10-flask-homologacao.sqlite" `
+  -Cycles 1
+```
+
+Execução controlada de dois ciclos:
+
+```powershell
+& "$PWD\scripts\run-flask-collector.ps1" `
+  -PropertyId 309943616 `
+  -DatabasePath "$env:TEMP\scc10-flask-homologacao.sqlite" `
+  -IntervalSeconds 15 `
+  -Cycles 2
+```
+
+O arquivo de lock é criado ao lado do SQLite por padrão e removido ao final. Não apontar o teste para `data/scc10.sqlite` enquanto o Node estiver ativo. Para o Agendador de Tarefas, usar `-Cycles 1` e repetir a tarefa externamente; não registrar duas tarefas para a mesma propriedade e banco.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
@@ -244,7 +267,21 @@ Carregando dados do Analytics
 
 Depois devem aparecer as abas do dashboard.
 
-## 9. Verificar erros
+## 10. Sincronizar matérias no Flask em SQLite novo
+
+A sincronização não importa dados do banco Node. Use um SQLite novo e um período curto na primeira validação:
+
+```powershell
+$env:GOOGLE_SERVICE_ACCOUNT_FILE = "$env:LOCALAPPDATA\SCC10\secrets\ga4-service-account.json"
+$env:SCC10_PROPERTY_ID = '309943616'
+uv run --python .venv/Scripts/python.exe run_flask_article_sync.py `
+  --start-date 1daysAgo `
+  --database-path "$env:LOCALAPPDATA\hermes\cache\scratch\scc10-article-sync.sqlite"
+```
+
+Resultado esperado: `fetched`, `saved` e `articleCount`, com o banco criado somente com dados retornados pelo GA4. Use `30daysAgo` ou períodos maiores apenas depois de validar o tempo de resposta e o consumo de quota.
+
+## 11. Verificar erros
 
 ```powershell
 npx --yes agent-browser console

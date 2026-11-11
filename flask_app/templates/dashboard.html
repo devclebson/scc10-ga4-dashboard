@@ -10,8 +10,17 @@
   <article class="panel"><div class="panel-heading"><h2>Canais de hoje</h2></div><div id="channels" class="channels-list"></div></article>
 </section>
 <section class="panel"><div class="panel-heading"><h2>Leitores por minuto</h2><span>últimos 30 minutos</span></div><div id="minute-chart" class="minute-chart"></div></section>
+<section class="panel historical-panel">
+  <div class="panel-heading"><div><h2>Histórico GA4</h2><span>Relatórios históricos consultados pelo Flask</span></div><div class="dashboard-actions"><label>Período <select id="historical-range"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option></select></label><button id="historical-refresh" class="button" type="button">Carregar histórico</button></div></div>
+  <div id="historical-status" class="status">Histórico ainda não carregado.</div>
+  <div class="cards" id="historical-summary"><div class="card"><span>Sessões</span><strong id="historical-sessions">--</strong></div><div class="card"><span>Leitores ativos</span><strong id="historical-users">--</strong></div><div class="card"><span>Visualizações</span><strong id="historical-views">--</strong></div><div class="card"><span>Novos leitores</span><strong id="historical-new-users">--</strong></div></div>
+  <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><h3>Principais canais</h3></div><div id="historical-channels" class="channels-list"></div></article><article class="panel"><div class="panel-heading"><h3>Principais páginas</h3></div><ol id="historical-pages" class="ranking-list"></ol></article></div>
+  <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><h3>Países</h3></div><div id="historical-geo" class="channels-list"></div></article><article class="panel"><div class="panel-heading"><h3>Dispositivos</h3></div><div id="historical-devices" class="channels-list"></div></article></div>
+  <div class="dashboard-grid"><article class="panel"><div class="panel-heading"><h3>Eventos</h3></div><div id="historical-events" class="channels-list"></div></article><article class="panel"><div class="panel-heading"><h3>Conversões</h3></div><div id="historical-conversions" class="channels-list"></div></article></div>
+</section>
 <script>
 const endpoint = '{{ url_for("api.dashboard_summary") }}';
+const historicalEndpoint = '{{ url_for("api.ga4_reports") }}';
 const number = value => Number(value || 0).toLocaleString('pt-BR');
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 function render(data) {
@@ -28,12 +37,54 @@ function render(data) {
   document.querySelector('#minute-chart').innerHTML = minutes.map(item => `<div class="bar-wrap" title="${escapeHtml(item.minute)}: ${number(item.users)} leitores"><span class="bar" style="height:${Math.max((Number(item.users) || 0) / max * 100, 3)}%"></span></div>`).join('') || '<p class="empty">Nenhuma série disponível.</p>';
   document.querySelector('#status').textContent = `Snapshot atualizado em ${latest.captured_at ? new Date(latest.captured_at).toLocaleString('pt-BR') : '--'} · ${number(data.articlesCached)} matérias em cache`;
 }
+function isoDate(daysAgo) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  return date.toISOString().slice(0, 10);
+}
+function metricTotal(rows, index) { return rows.reduce((total, row) => total + (Number(row.metricValues?.[index]?.value) || 0), 0); }
+function renderBreakdown(selector, rows, metricIndex, emptyLabel) {
+  document.querySelector(selector).innerHTML = rows.slice(0, 10).map(row => `<div class="channel-row"><span>${escapeHtml(row.dimensionValues?.[0]?.value || '(not set)')}</span><strong>${number(row.metricValues?.[metricIndex]?.value)}</strong></div>`).join('') || `<p class="empty">${emptyLabel}</p>`;
+}
+function renderHistorical(data, startDate, endDate) {
+  const overview = data.overview?.rows || [];
+  document.querySelector('#historical-sessions').textContent = number(metricTotal(overview, 0));
+  document.querySelector('#historical-users').textContent = number(metricTotal(overview, 1));
+  document.querySelector('#historical-views').textContent = number(metricTotal(overview, 2));
+  document.querySelector('#historical-new-users').textContent = number(metricTotal(overview, 6));
+  const channels = data.channels?.rows || [];
+  document.querySelector('#historical-channels').innerHTML = channels.slice(0, 10).map(row => `<div class="channel-row"><span>${escapeHtml(row.dimensionValues?.[0]?.value || '(not set)')}</span><strong>${number(row.metricValues?.[0]?.value)}</strong></div>`).join('') || '<p class="empty">Nenhum canal retornado.</p>';
+  const pages = data.pages?.rows || [];
+  document.querySelector('#historical-pages').innerHTML = pages.slice(0, 10).map((row, index) => `<li><span class="rank-number">${index + 1}</span><div><strong>${escapeHtml(row.dimensionValues?.[0]?.value || '(not set)')}</strong><small>${number(row.metricValues?.[0]?.value)} visualizações</small></div></li>`).join('') || '<li class="empty">Nenhuma página retornada.</li>';
+  renderBreakdown('#historical-geo', data.geo?.rows || [], 0, 'Nenhum país retornado.');
+  renderBreakdown('#historical-devices', data.devices?.rows || [], 0, 'Nenhum dispositivo retornado.');
+  renderBreakdown('#historical-events', data.events?.rows || [], 0, 'Nenhum evento retornado.');
+  renderBreakdown('#historical-conversions', data.conversions?.rows || [], 0, 'Nenhuma conversão retornada.');
+  document.querySelector('#historical-status').textContent = `Histórico GA4 carregado pelo Flask · ${startDate} a ${endDate}`;
+}
+async function loadHistorical() {
+  const status = document.querySelector('#historical-status');
+  const days = Number(document.querySelector('#historical-range').value) || 30;
+  const startDate = isoDate(days - 1); const endDate = isoDate(0);
+  status.textContent = 'Consultando relatórios históricos no GA4...';
+  try {
+    const configResponse = await fetch('{{ url_for("api.config") }}', {cache: 'no-store'});
+    const config = await configResponse.json();
+    if (!configResponse.ok || !config.propertyId) throw new Error('Propriedade GA4 não configurada.');
+    const response = await fetch(historicalEndpoint, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({propertyId: config.propertyId, startDate, endDate})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o histórico.');
+    renderHistorical(data, startDate, endDate);
+  } catch (error) { status.textContent = error.message; }
+}
 async function load() {
   const status = document.querySelector('#status'); status.textContent = 'Atualizando snapshot...';
   try { const response = await fetch(endpoint, { cache: 'no-store' }); if (!response.ok) throw new Error('Não foi possível carregar o snapshot.'); render(await response.json()); }
   catch (error) { status.textContent = error.message; }
 }
 document.querySelector('#refresh').addEventListener('click', load);
+document.querySelector('#historical-refresh').addEventListener('click', loadHistorical);
 document.querySelector('#fullscreen').addEventListener('click', async () => {
   try {
     await document.documentElement.requestFullscreen();

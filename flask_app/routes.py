@@ -7,7 +7,15 @@ import secrets
 from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from .services.ga4_service import article_traffic_cache_stats, configured as ga4_configured, run_article_traffic
+from .services.ga4_service import (
+    _historical_request_budget,
+    article_traffic_cache_stats,
+    configured as ga4_configured,
+    run_article_traffic,
+    run_historical_report,
+    run_standard_historical_reports,
+)
+from .services.article_sync import sync_article_metadata
 
 pages = Blueprint('pages', __name__)
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -64,6 +72,11 @@ def _configuration_payload(repository):
         'defaultDateRange': settings.get('defaultDateRange', '30'),
         'compareEnabled': settings.get('compareEnabled', 'true') == 'true',
     }
+
+
+def _configured_property_id(repository):
+    settings = repository.settings()
+    return str(settings.get('propertyId') or current_app.config.get('PROPERTY_ID') or '').strip()
 
 
 def _validate_configuration(payload):
@@ -219,6 +232,67 @@ def admin_config():
     return jsonify(_configuration_payload(repository))
 
 
+@api.post('/ga4/report')
+def ga4_report():
+    body = request.get_json(silent=True) or {}
+    property_id = str(body.get('propertyId', '')).strip().removeprefix('properties/')
+    payload = body.get('payload')
+    if not re.fullmatch(r'\d+', property_id) or not isinstance(payload, dict):
+        return jsonify({'error': 'Propriedade GA4 e payload do relatório são obrigatórios.'}), 400
+    if property_id != _configured_property_id(current_app.extensions['repository']):
+        return jsonify({'error': 'Propriedade GA4 diferente da configurada.'}), 400
+    if not ga4_configured():
+        return jsonify({'error': 'Service Account não configurada no Flask.'}), 503
+    try:
+        result = run_historical_report(property_id, payload, force_refresh=body.get('forceRefresh') is True)
+    except Exception as error:
+        return jsonify({'error': str(error)}), getattr(error, 'status', 502)
+    return jsonify(result)
+
+
+@api.post('/ga4/reports')
+def ga4_reports():
+    body = request.get_json(silent=True) or {}
+    property_id = str(body.get('propertyId', '')).strip().removeprefix('properties/')
+    start_date = str(body.get('startDate', '')).strip()
+    end_date = str(body.get('endDate', '')).strip()
+    if not re.fullmatch(r'\d+', property_id) or not start_date or not end_date:
+        return jsonify({'error': 'Propriedade e período do relatório são obrigatórios.'}), 400
+    if property_id != _configured_property_id(current_app.extensions['repository']):
+        return jsonify({'error': 'Propriedade GA4 diferente da configurada.'}), 400
+    if not ga4_configured():
+        return jsonify({'error': 'Service Account não configurada no Flask.'}), 503
+    try:
+        result = run_standard_historical_reports(
+            property_id,
+            start_date,
+            end_date,
+            force_refresh=body.get('forceRefresh') is True,
+        )
+    except Exception as error:
+        return jsonify({'error': str(error)}), getattr(error, 'status', 502)
+    return jsonify(result)
+
+
+@api.post('/articles/sync')
+@admin_required
+@csrf_protected
+def sync_articles():
+    repository = current_app.extensions['repository']
+    body = request.get_json(silent=True) or {}
+    property_id = _configured_property_id(repository)
+    start_date = str(body.get('startDate', '30daysAgo')).strip() or '30daysAgo'
+    if not re.fullmatch(r'\d+', property_id):
+        return jsonify({'error': 'Propriedade GA4 não configurada.'}), 400
+    if not ga4_configured():
+        return jsonify({'error': 'Service Account não configurada no Flask.'}), 503
+    try:
+        result = sync_article_metadata(property_id, repository, start_date)
+    except Exception as error:
+        return jsonify({'error': str(error)}), getattr(error, 'status', 502)
+    return jsonify({'propertyId': property_id, 'startDate': start_date, **result})
+
+
 @api.post('/config/admin')
 @admin_required
 @csrf_protected
@@ -248,5 +322,6 @@ def config_diagnostics():
         'service': 'scc10-flask',
         'collector': repository.collector_diagnostics(property_id, interval_seconds),
         'historicalReportCache': article_traffic_cache_stats(),
+        'historicalRequestBudget': _historical_request_budget.stats(),
     })
     return jsonify(diagnostics)

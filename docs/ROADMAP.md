@@ -64,11 +64,11 @@ O ranking realtime existente está funcionando com snapshots do backend. A branc
 
 ## Próxima etapa imediata
 
-- Validar visualmente a edição da configuração com o Flask autenticado.
-- Validar visualmente o diagnóstico operacional detalhado.
-- Integrar cache de relatórios históricos no serviço GA4 Flask.
-- Migrar os demais relatórios históricos e revisar quota.
-- Manter o intervalo do coletor fora da tela até o worker que o consome ser migrado.
+- Comparar múltiplos ciclos Flask e Node no mesmo período e propriedade.
+- Validar o wrapper/agendamento externo em SQLite isolado.
+- Validar retenção e backup do SQLite em operação contínua.
+- Fazer a validação visual completa das telas Flask antes do corte.
+- Não migrar dados históricos do projeto Node para o novo projeto.
 - Atualizar o inventário antes de arquivar qualquer arquivo do runtime Node.
 
 Validações concluídas em 9 de novembro de 2026: `ranking-teste.html` retornou 392 dimensões e 114.506 registros; as dimensões técnicas de categoria, autor e publicação retornaram dados; o dashboard carregou dados realtime reais; o coletor manteve 500 snapshots; o Histórico Local foi confirmado após múltiplos ciclos; e o fallback retornou `/page/3445/` para `Página Inicial`.
@@ -94,6 +94,10 @@ Ranking de autores iniciado em `autores.html`: período mês atual, pódio, rank
 - O pódio usa iniciais automaticamente quando a imagem externa falha ou o portal bloqueia o acesso.
 - Atualização manual e automática a cada 30 segundos implementadas na tela Flask.
 - Backend Node.js e coletor GA4 permanecem intactos durante a migração.
+- Serviço de relatórios históricos GA4 Flask integrado ao dashboard com sete relatórios e cache.
+- Controle local de quota histórica Flask implementado e exposto no diagnóstico.
+- Serviço de coleta realtime Flask implementado com parser, snapshots e `collector_runs`.
+- Comando `run_flask_collector.py` validado em ciclo único e dois ciclos sequenciais em SQLite isolado.
 - Login administrativo Flask validado visualmente em `/configuracao/admin`.
 - Configuração Flask editável criada para propriedade, período padrão e comparação.
 - Rotas protegidas `/api/config/admin` implementadas com persistência em `app_settings`.
