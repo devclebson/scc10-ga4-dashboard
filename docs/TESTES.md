@@ -86,6 +86,16 @@ O arquivo de lock é criado ao lado do SQLite por padrão e removido ao final. N
 
 Validação mais recente: `-Cycles 1` retornou `snapshotId: 1` e `rowsCount: 60`; o backup continha o mesmo snapshot e o arquivo de lock foi removido ao final.
 
+Para preparar uma tarefa do Agendador de Tarefas sem registrá-la ainda:
+
+```powershell
+& "$PWD\scripts\register-flask-collector-task.ps1" `
+  -PropertyId 309943616 `
+  -DatabasePath "$env:LOCALAPPDATA\SCC10\data\scc10-flask.sqlite"
+```
+
+O script usa `-Cycles 1` e deixa a repetição para o Agendador. A opção `-Apply` registra a tarefa; não usar enquanto o coletor manual estiver ativo no mesmo banco.
+
 Comparação isolada Flask x Node: o primeiro snapshot Flask (`17:29:52 UTC`) e o snapshot Node (`17:29:55 UTC`) tiveram `77` leitores em 5 minutos, `421` em 30 minutos e `60` matérias; visualizações em 30 minutos ficaram em `602` no Flask e `603` no Node. O Flask gravou ainda dois ciclos posteriores com `60` matérias cada.
 
 Sincronização real no banco do dashboard: `1daysAgo` retornou `1.179` linhas, salvou `1.169` registros válidos e deixou `1.133` matérias únicas em cache. O diagnóstico retornou `articlesCached: 1133` e o dashboard exibiu esse total.
