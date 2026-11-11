@@ -27,6 +27,7 @@ Atualizado em 9 de novembro de 2026.
 - Relatórios históricos Flask integrados ao dashboard: visão geral, canais, países, dispositivos, páginas, eventos e conversões.
 - Limite local de quota histórica validado: 60 chamadas reais por janela de 60 segundos, com diagnóstico e HTTP 429.
 - Coletor realtime Flask validado em SQLite isolado: ciclo único e dois ciclos sequenciais, ambos `success`, sem alterar o banco do Node.
+- Wrapper PowerShell validado novamente com `-Cycles 1`, retenção e backup: snapshot salvo, backup legível e lock removido.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas

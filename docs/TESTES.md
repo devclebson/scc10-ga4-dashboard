@@ -84,6 +84,8 @@ Execução controlada de dois ciclos:
 
 O arquivo de lock é criado ao lado do SQLite por padrão e removido ao final. Não apontar o teste para `data/scc10.sqlite` enquanto o Node estiver ativo. Para o Agendador de Tarefas, usar `-Cycles 1` e repetir a tarefa externamente; não registrar duas tarefas para a mesma propriedade e banco.
 
+Validação mais recente: `-Cycles 1` retornou `snapshotId: 1` e `rowsCount: 60`; o backup continha o mesmo snapshot e o arquivo de lock foi removido ao final.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
