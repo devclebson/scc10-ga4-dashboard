@@ -102,6 +102,8 @@ Sincronização real no banco do dashboard: `1daysAgo` retornou `1.179` linhas, 
 
 Agendamento local validado: a tarefa `SCC10 Flask Collector` executou pelo Agendador de Tarefas com resultado `0`; o SQLite registrou `collector_runs.status = success`, `rows_count = 60`, e o lock foi removido ao final.
 
+Corte local do Node: as portas `3000`, `3001` e `3101` estavam livres e não havia processo Node/backend ativo; a porta Flask `5000` permaneceu respondendo HTTP `200`. O runtime Node não foi apagado, para permitir rollback, e o container privado não foi atualizado.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit

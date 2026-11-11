@@ -32,6 +32,7 @@ Atualizado em 9 de novembro de 2026.
 - Três ciclos Flask sequenciais foram gravados com 60 matérias por ciclo; a diferença posterior dos números realtime foi tratada como avanço normal da janela.
 - Sincronização de metadados executada no SQLite novo do dashboard com `1daysAgo`: 1.179 linhas retornadas, 1.169 válidas e 1.133 matérias únicas em cache; dashboard confirmou o novo total visualmente.
 - Tarefa local `SCC10 Flask Collector` registrada e executada pelo Agendador de Tarefas a cada 1 minuto; última execução validada com resultado `0`, `collector_runs=success`, 60 linhas e lock removido.
+- Corte local concluído: nenhum backend/coletor Node está ativo nas portas locais; Flask e o Agendador de Tarefas são os caminhos ativos. O runtime Node permanece versionado para rollback e o container `192.168.0.71` não foi alterado.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas
@@ -125,8 +126,9 @@ Não atualizar o container sem autorização explícita.
 3. Validar retenção e backup do SQLite em ciclos contínuos.
 4. Fazer a validação visual completa do Dashboard, Ranking, Autores, Matéria e Configuração.
 5. Não migrar dados históricos do projeto Node: o novo projeto inicia seu cache a partir das próximas coletas do GA4.
-6. Só depois do corte completo, arquivar o runtime Node legado.
-7. Não atualizar o container sem autorização explícita e validação visual.
+6. Observar o Flask agendado por alguns ciclos e concluir a homologação visual.
+7. Arquivar o runtime Node somente após essa observação, mantendo rollback versionado.
+8. Não atualizar o container sem autorização explícita e validação visual.
 
 As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local, do dashboard realtime, do login administrativo e do cache histórico foram concluídas em 9 de novembro de 2026.
 
