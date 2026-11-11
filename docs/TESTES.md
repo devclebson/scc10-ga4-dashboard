@@ -100,6 +100,8 @@ Comparação isolada Flask x Node: o primeiro snapshot Flask (`17:29:52 UTC`) e 
 
 Sincronização real no banco do dashboard: `1daysAgo` retornou `1.179` linhas, salvou `1.169` registros válidos e deixou `1.133` matérias únicas em cache. O diagnóstico retornou `articlesCached: 1133` e o dashboard exibiu esse total.
 
+Agendamento local validado: a tarefa `SCC10 Flask Collector` executou pelo Agendador de Tarefas com resultado `0`; o SQLite registrou `collector_runs.status = success`, `rows_count = 60`, e o lock foi removido ao final.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit

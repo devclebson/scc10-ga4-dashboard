@@ -31,6 +31,7 @@ Atualizado em 9 de novembro de 2026.
 - Comparação isolada Flask x Node realizada na propriedade `309943616`: o primeiro snapshot quase simultâneo teve 77/421 leitores e 60 matérias nos dois; visualizações 30m ficaram em 602 no Flask e 603 no Node.
 - Três ciclos Flask sequenciais foram gravados com 60 matérias por ciclo; a diferença posterior dos números realtime foi tratada como avanço normal da janela.
 - Sincronização de metadados executada no SQLite novo do dashboard com `1daysAgo`: 1.179 linhas retornadas, 1.169 válidas e 1.133 matérias únicas em cache; dashboard confirmou o novo total visualmente.
+- Tarefa local `SCC10 Flask Collector` registrada e executada pelo Agendador de Tarefas a cada 1 minuto; última execução validada com resultado `0`, `collector_runs=success`, 60 linhas e lock removido.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas
