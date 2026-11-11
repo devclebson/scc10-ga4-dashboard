@@ -28,6 +28,8 @@ Atualizado em 9 de novembro de 2026.
 - Limite local de quota histórica validado: 60 chamadas reais por janela de 60 segundos, com diagnóstico e HTTP 429.
 - Coletor realtime Flask validado em SQLite isolado: ciclo único e dois ciclos sequenciais, ambos `success`, sem alterar o banco do Node.
 - Wrapper PowerShell validado novamente com `-Cycles 1`, retenção e backup: snapshot salvo, backup legível e lock removido.
+- Comparação isolada Flask x Node realizada na propriedade `309943616`: o primeiro snapshot quase simultâneo teve 77/421 leitores e 60 matérias nos dois; visualizações 30m ficaram em 602 no Flask e 603 no Node.
+- Três ciclos Flask sequenciais foram gravados com 60 matérias por ciclo; a diferença posterior dos números realtime foi tratada como avanço normal da janela.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas

@@ -86,6 +86,8 @@ O arquivo de lock é criado ao lado do SQLite por padrão e removido ao final. N
 
 Validação mais recente: `-Cycles 1` retornou `snapshotId: 1` e `rowsCount: 60`; o backup continha o mesmo snapshot e o arquivo de lock foi removido ao final.
 
+Comparação isolada Flask x Node: o primeiro snapshot Flask (`17:29:52 UTC`) e o snapshot Node (`17:29:55 UTC`) tiveram `77` leitores em 5 minutos, `421` em 30 minutos e `60` matérias; visualizações em 30 minutos ficaram em `602` no Flask e `603` no Node. O Flask gravou ainda dois ciclos posteriores com `60` matérias cada.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
