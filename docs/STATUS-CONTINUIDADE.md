@@ -128,7 +128,7 @@ Não atualizar o container sem autorização explícita.
 4. Fazer a validação visual completa do Dashboard, Ranking, Autores, Matéria e Configuração.
 5. Não migrar dados históricos do projeto Node: o novo projeto inicia seu cache a partir das próximas coletas do GA4.
 6. Observar o Flask agendado por alguns ciclos e concluir a homologação visual.
-7. Arquivar o runtime Node somente após essa observação, mantendo rollback versionado.
+7. Atualizar o deploy/container para Flask antes de arquivar o runtime Node; manter rollback versionado.
 8. Não atualizar o container sem autorização explícita e validação visual.
 
 As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local, do dashboard realtime, do login administrativo e do cache histórico foram concluídas em 9 de novembro de 2026.

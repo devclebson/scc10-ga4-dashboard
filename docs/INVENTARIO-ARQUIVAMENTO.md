@@ -1,6 +1,6 @@
 # Inventário de arquivos e arquivamento legado
 
-Atualizado em 9 de novembro de 2026.
+Atualizado em 11 de novembro de 2026.
 
 ## Regra de arquivamento
 
@@ -79,6 +79,8 @@ Somente após a migração correspondente:
 Esses arquivos sustentam a operação de transição e são referência de comportamento para a migração Flask.
 
 ## Condição para a primeira limpeza
+
+O corte local do coletor e do dashboard foi concluído, mas o arquivamento do runtime Node ainda está bloqueado porque o deploy `deploy/scc10-api.service` aponta para `server/server.js` e o container privado não recebeu a versão Flask. O runtime Node permanece preservado para rollback e para a próxima etapa de deploy.
 
 A primeira movimentação segura só poderá ocorrer quando:
 
