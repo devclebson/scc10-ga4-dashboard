@@ -104,6 +104,8 @@ Agendamento local validado: a tarefa `SCC10 Flask Collector` executou pelo Agend
 
 Corte local do Node: as portas `3000`, `3001` e `3101` estavam livres e não havia processo Node/backend ativo; a porta Flask `5000` permaneceu respondendo HTTP `200`. O runtime Node não foi apagado, para permitir rollback, e o container privado não foi atualizado.
 
+Observação pós-corte: após 125 segundos, o Agendador informou resultado `0`, zero execuções perdidas, e os três últimos `collector_runs` estavam `success` com `rows_count = 60`; o banco acumulava 53 snapshots e não havia lock residual.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit

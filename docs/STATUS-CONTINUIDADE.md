@@ -33,6 +33,7 @@ Atualizado em 9 de novembro de 2026.
 - Sincronização de metadados executada no SQLite novo do dashboard com `1daysAgo`: 1.179 linhas retornadas, 1.169 válidas e 1.133 matérias únicas em cache; dashboard confirmou o novo total visualmente.
 - Tarefa local `SCC10 Flask Collector` registrada e executada pelo Agendador de Tarefas a cada 1 minuto; última execução validada com resultado `0`, `collector_runs=success`, 60 linhas e lock removido.
 - Corte local concluído: nenhum backend/coletor Node está ativo nas portas locais; Flask e o Agendador de Tarefas são os caminhos ativos. O runtime Node permanece versionado para rollback e o container `192.168.0.71` não foi alterado.
+- Observação pós-corte concluída: três execuções agendadas consecutivas retornaram `success`, 60 linhas cada, sem execuções perdidas, com 53 snapshots acumulados e lock removido.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
 ## Verificações realizadas
