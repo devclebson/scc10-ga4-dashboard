@@ -88,6 +88,8 @@ Validação mais recente: `-Cycles 1` retornou `snapshotId: 1` e `rowsCount: 60`
 
 Comparação isolada Flask x Node: o primeiro snapshot Flask (`17:29:52 UTC`) e o snapshot Node (`17:29:55 UTC`) tiveram `77` leitores em 5 minutos, `421` em 30 minutos e `60` matérias; visualizações em 30 minutos ficaram em `602` no Flask e `603` no Node. O Flask gravou ainda dois ciclos posteriores com `60` matérias cada.
 
+Sincronização real no banco do dashboard: `1daysAgo` retornou `1.179` linhas, salvou `1.169` registros válidos e deixou `1.133` matérias únicas em cache. O diagnóstico retornou `articlesCached: 1133` e o dashboard exibiu esse total.
+
 ## Homologação do container
 
 Em 6 de novembro de 2026, o container `192.168.0.71` foi validado com o commit
