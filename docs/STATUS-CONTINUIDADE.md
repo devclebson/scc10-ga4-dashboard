@@ -32,7 +32,8 @@ Atualizado em 9 de novembro de 2026.
 - Três ciclos Flask sequenciais foram gravados com 60 matérias por ciclo; a diferença posterior dos números realtime foi tratada como avanço normal da janela.
 - Sincronização de metadados executada no SQLite novo do dashboard com `1daysAgo`: 1.179 linhas retornadas, 1.169 válidas e 1.133 matérias únicas em cache; dashboard confirmou o novo total visualmente.
 - Tarefa local `SCC10 Flask Collector` registrada e executada pelo Agendador de Tarefas a cada 1 minuto; última execução validada com resultado `0`, `collector_runs=success`, 60 linhas e lock removido.
-- Corte local concluído: nenhum backend/coletor Node está ativo nas portas locais; Flask e o Agendador de Tarefas são os caminhos ativos. O runtime Node permanece versionado para rollback e o container `192.168.0.71` não foi alterado.
+- Corte local concluído: nenhum backend/coletor Node está ativo nas portas locais; Flask e o Agendador de Tarefas são os caminhos ativos. O runtime Node permanece versionado para rollback.
+- Deploy no container foi pausado por decisão do usuário: o Flask foi apenas preparado em paralelo, sem troca do Nginx; a próxima homologação será feita em um container novo, criado do zero.
 - Observação pós-corte concluída: três execuções agendadas consecutivas retornaram `success`, 60 linhas cada, sem execuções perdidas, com 53 snapshots acumulados e lock removido.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
 
@@ -128,8 +129,9 @@ Não atualizar o container sem autorização explícita.
 4. Fazer a validação visual completa do Dashboard, Ranking, Autores, Matéria e Configuração.
 5. Não migrar dados históricos do projeto Node: o novo projeto inicia seu cache a partir das próximas coletas do GA4.
 6. Observar o Flask agendado por alguns ciclos e concluir a homologação visual.
-7. Atualizar o deploy/container para Flask antes de arquivar o runtime Node; manter rollback versionado.
-8. Não atualizar o container sem autorização explícita e validação visual.
+7. Criar um container novo do zero e instalar o Flask já validado localmente.
+8. Arquivar o runtime Node somente depois da homologação no novo container, mantendo rollback versionado.
+9. Não atualizar o container antigo sem autorização explícita.
 
 As validações de `ranking-teste.html`, do relatório histórico, do fallback de URL, do Histórico Local, do dashboard realtime, do login administrativo e do cache histórico foram concluídas em 9 de novembro de 2026.
 
