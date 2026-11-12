@@ -1,5 +1,9 @@
 import os
 
+from flask_app.config import BASE_DIR, _load_dotenv
+
+_load_dotenv(BASE_DIR / '.env')
+
 from flask_app import create_app
 
 app = create_app()

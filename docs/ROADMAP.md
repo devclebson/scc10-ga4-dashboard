@@ -35,6 +35,8 @@
 
 ## Estado atual
 
+O fluxo local validado em 12 de novembro de 2026 usa `run_project.py` para iniciar o Flask e o coletor manualmente. O acesso pela rede interna, login administrativo Flask, persistência das configurações e atualização realtime foram confirmados. A tarefa do Agendador de Tarefas foi desabilitada/removida; não há coleta automática pelo Windows neste modo.
+
 O fluxo de produção local é:
 
 ```text

@@ -111,6 +111,14 @@ def test_routes_and_existing_sqlite(tmp_path):
         'compareEnabled': False,
     }
 
+    saved_enabled = client.post('/api/config/admin', json={
+        'propertyId': '456',
+        'defaultDateRange': '90',
+        'compareEnabled': True,
+    }, headers={'X-CSRF-Token': csrf_token})
+    assert saved_enabled.status_code == 200
+    assert client.get('/api/config/admin').get_json()['compareEnabled'] is True
+
     invalid = client.post('/api/config/admin', json={
         'propertyId': 'not-a-property',
         'defaultDateRange': '90',

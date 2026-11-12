@@ -25,6 +25,22 @@ O resultado esperado é `authMode: service-account` e `configured: true`.
 
 ## Validação Flask local
 
+Execução manual atual, sem comandos de variáveis de ambiente:
+
+```powershell
+npm run local
+```
+
+O comando carrega o `.env`, inicia o Flask na porta `5000` e inicia o coletor realtime a cada 30 segundos. Para acesso pela rede interna, o `.env` usa `FLASK_HOST=0.0.0.0`; abra `http://<IP_DA_MAQUINA>:5000/dashboard` e libere a porta `5000` somente no perfil de firewall `Private`.
+
+Para definir ou trocar a senha fixa do login Flask:
+
+```powershell
+npm run admin:setup-flask-password
+```
+
+O comando solicita a senha sem eco, grava somente o hash no `.env` e exige reinício do projeto. A senha deve ter pelo menos 16 caracteres.
+
 Na raiz do projeto, em um terminal separado:
 
 ```cmd

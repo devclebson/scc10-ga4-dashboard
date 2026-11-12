@@ -2,6 +2,10 @@ import argparse
 import os
 from pathlib import Path
 
+from flask_app.config import BASE_DIR, _load_dotenv
+
+_load_dotenv(BASE_DIR / '.env')
+
 from flask_app.repositories.sqlite_repository import SQLiteRepository
 from flask_app.services.ga4_service import configured
 from flask_app.services.realtime_collector import CollectorLock, collect_realtime_snapshot, maintain_storage, run_collector_loop
@@ -11,7 +15,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Executa o coletor realtime Flask.')
     parser.add_argument('--once', action='store_true', help='Executa somente um ciclo (padrão).')
     parser.add_argument('--loop', action='store_true', help='Mantém o coletor em execução.')
-    parser.add_argument('--interval', type=int, default=30, help='Intervalo entre ciclos, em segundos.')
+    parser.add_argument('--interval', type=int, default=int(os.environ.get('COLLECTOR_INTERVAL', '30')), help='Intervalo entre ciclos, em segundos.')
     parser.add_argument('--cycles', type=int, default=None, help='Limita a quantidade de ciclos no modo loop.')
     parser.add_argument('--retention-days', type=int, default=None, help='Remove snapshots anteriores a este número de dias.')
     parser.add_argument('--backup-path', default=None, help='Cria backup SQLite neste caminho após a coleta.')

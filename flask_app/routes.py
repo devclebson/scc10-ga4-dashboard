@@ -70,7 +70,7 @@ def _configuration_payload(repository):
     return {
         'propertyId': settings.get('propertyId') or current_app.config.get('PROPERTY_ID'),
         'defaultDateRange': settings.get('defaultDateRange', '30'),
-        'compareEnabled': settings.get('compareEnabled', 'true') == 'true',
+        'compareEnabled': str(settings.get('compareEnabled', 'true')).lower() == 'true',
     }
 
 

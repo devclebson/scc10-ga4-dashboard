@@ -1,6 +1,6 @@
 # Status de continuidade — SCC10 Monitor Editorial
 
-Atualizado em 9 de novembro de 2026.
+Atualizado em 12 de novembro de 2026.
 
 ## Ponto exato do projeto
 
@@ -36,6 +36,19 @@ Atualizado em 9 de novembro de 2026.
 - Deploy no container foi pausado por decisão do usuário: o Flask foi apenas preparado em paralelo, sem troca do Nginx; a próxima homologação será feita em um container novo, criado do zero.
 - Observação pós-corte concluída: três execuções agendadas consecutivas retornaram `success`, 60 linhas cada, sem execuções perdidas, com 53 snapshots acumulados e lock removido.
 - Testes Flask, Node, sintaxe JavaScript e `git diff --check` passaram.
+
+## Validação local mais recente
+
+- Execução manual consolidada em `run_project.py`: Flask e coletor iniciam juntos a partir do `.env`.
+- `.env` permanece ignorado pelo Git e contém a configuração local da Service Account, propriedade, SQLite, porta e intervalo do coletor.
+- Acesso pela rede interna validado em `http://192.168.53.26:5000/dashboard`, com `/api/health` respondendo `200`.
+- Coletor executou múltiplos ciclos reais com `60` matérias por snapshot.
+- Dashboard, Ranking, Autores, Matéria e Configuração foram verificados visualmente.
+- Filtros Top-N, períodos de autores, redirecionamento administrativo e responsividade foram validados.
+- Login administrativo Flask validado pela rede interna com senha fixa armazenada como hash no `.env`.
+- Configuração de período e comparação com período anterior persistem após salvar e reiniciar o Flask.
+- A tarefa `SCC10 Flask Collector` foi desabilitada; o modo operacional atual é manual.
+- O aviso do Flask sobre `python-dotenv` foi eliminado adicionando a dependência ao ambiente virtual.
 
 ## Verificações realizadas
 
