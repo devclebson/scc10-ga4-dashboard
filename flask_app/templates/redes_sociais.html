@@ -22,6 +22,7 @@
   <div class="panel-heading"><div><h2>Distribuição por rede</h2><span>Barras horizontais para comparar o peso de cada rede</span></div><label class="chart-metric-control">Métrica<select id="social-chart-metric"><option value="sessions">Sessões</option><option value="screenPageViews">Visualizações</option><option value="activeUsers">Usuários</option></select></label></div>
   <div id="social-bar-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar o gráfico.</div></div>
 </section>
+<section class="panel social-composition-panel"><div class="panel-heading"><div><h2>Participação social</h2><span>Top 5 redes e agrupamento das demais origens</span></div></div><div class="donut-layout"><div id="social-donut" class="donut-chart"><span>--</span></div><div id="social-donut-legend" class="donut-legend"><div class="empty-state">Consulte um período para carregar a composição.</div></div></div></section>
 <section class="panel">
   <div class="panel-heading"><div><h2>Origens sociais detalhadas</h2><span>Origem / mídia retornado pelo GA4</span></div><span id="social-source-count"></span></div>
   <div class="table-wrap"><table class="ranking-table"><thead><tr><th>Rede ou origem</th><th>Mídia</th><th>Sessões</th><th>Usuários</th><th>Visualizações</th><th>Participação</th></tr></thead><tbody id="social-sources"><tr><td colspan="6"><div class="empty-state">Nenhum dado carregado.</div></td></tr></tbody></table></div>
@@ -84,6 +85,19 @@ function renderChart(grouped) {
     return `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(network.label)}</strong><span>${number(value)} ${metricLabel} · ${pct.toFixed(1)}%</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill horizontal-bar-fill--${network.color}" style="width:${Math.max((value / max) * 100, 2)}%"></i></div></div>`;
   }).join('') || '<div class="empty-state">Nenhuma rede social identificada no período.</div>';
 }
+function renderDonut(grouped) {
+  const colors = {facebook: '#1877f2', instagram: '#c13584', whatsapp: '#16a34a', youtube: '#dc2626', tiktok: '#111827', telegram: '#229ed9', linkedin: '#0a66c2', threads: '#374151', reddit: '#ff4500', x: '#111827'};
+  const top = grouped.slice(0, 5);
+  const rest = grouped.slice(5);
+  const other = rest.reduce((sum, network) => sum + Number(network.sessions || 0), 0);
+  const segments = [...top, ...(other ? [{key: 'other', label: 'Outras', sessions: other, color: '#94a3b8'}] : [])];
+  const total = segments.reduce((sum, network) => sum + Number(network.sessions || 0), 0);
+  let cursor = 0;
+  const gradient = segments.map(network => { const start = cursor; cursor += (Number(network.sessions || 0) / total) * 100; return `${colors[network.key] || network.color || '#94a3b8'} ${start}% ${cursor}%`; }).join(', ');
+  document.querySelector('#social-donut').style.background = total ? `conic-gradient(${gradient})` : '';
+  document.querySelector('#social-donut').innerHTML = `<span>${number(total)}<small>sessões</small></span>`;
+  document.querySelector('#social-donut-legend').innerHTML = segments.map(network => `<div class="donut-legend-row"><span><i style="background:${colors[network.key] || '#94a3b8'}"></i>${escapeHtml(network.label)}</span><strong>${total ? ((Number(network.sessions || 0) / total) * 100).toFixed(1) : '0.0'}%</strong></div>`).join('') || '<div class="empty-state">Nenhuma rede identificada.</div>';
+}
 function render(data) {
   window.socialReport = data;
   const sources = rowsToObjects(data.sources || {}).filter(row => classify(row.sessionSourceMedium));
@@ -98,6 +112,7 @@ function render(data) {
   document.querySelector('#social-period').textContent = `${document.querySelector('#social-start').value} a ${document.querySelector('#social-end').value}`;
   document.querySelector('#social-cards').innerHTML = grouped.map(network => `<article class="social-network-card social-network-card--${network.color}"><div class="social-network-card__head"><span class="social-network-icon">${['facebook','instagram','whatsapp','youtube','tiktok','telegram','reddit','threads','x'].includes(network.key) ? `<img class="brand-icon" src="${brandIconBase}${network.key}.svg" alt="">` : escapeHtml(network.label.slice(0, 1))}</span><div><h2>${escapeHtml(network.label)}</h2><small>${network.sources} origem(ns) identificada(s)</small></div></div><div class="social-network-card__metrics"><div><span>Sessões</span><strong>${number(network.sessions)}</strong></div><div><span>Usuários</span><strong>${number(network.activeUsers)}</strong></div><div><span>Visualizações</span><strong>${number(network.screenPageViews)}</strong></div></div><div class="social-network-card__share"><span>Participação social</span><strong>${totalSessions ? ((network.sessions / totalSessions) * 100).toFixed(1) : '0.0'}%</strong></div></article>`).join('') || '<div class="empty-state">Nenhuma rede social identificada no período.</div>';
   renderChart(grouped);
+  renderDonut(grouped);
   document.querySelector('#social-sources').innerHTML = sources.sort((a, b) => Number(b.sessions || 0) - Number(a.sessions || 0)).map(row => { const parts = String(row.sessionSourceMedium || '(not set)').split(' / '); return `<tr><td><strong>${escapeHtml(parts[0])}</strong></td><td>${escapeHtml(parts.slice(1).join(' / ') || '(not set)')}</td><td>${number(row.sessions)}</td><td>${number(row.activeUsers)}</td><td>${number(row.screenPageViews)}</td><td>${totalSessions ? `${((Number(row.sessions || 0) / totalSessions) * 100).toFixed(1)}%` : '--'}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty-state">Nenhuma origem social retornada.</div></td></tr>';
   document.querySelector('#social-source-count').textContent = `${sources.length} origens detalhadas`;
   document.querySelector('#social-status').textContent = `Relatório histórico carregado · ${document.querySelector('#social-start').value} a ${document.querySelector('#social-end').value}`;

@@ -2,6 +2,7 @@ import json
 import os
 import threading
 import time
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from google.auth.transport.requests import Request as GoogleRequest
@@ -18,6 +19,18 @@ _historical_report_cache = ReportCache(ttl_seconds=300, max_entries=128)
 
 class Ga4QuotaError(RuntimeError):
     status = 429
+
+
+def _open_report(request):
+    try:
+        with urlopen(request, timeout=20) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except HTTPError as error:
+        if error.code == 429:
+            retry_after = error.headers.get('Retry-After') if error.headers else None
+            suffix = f' Aguarde {retry_after}s antes de tentar novamente.' if retry_after else ' Aguarde o próximo ciclo antes de tentar novamente.'
+            raise Ga4QuotaError(f'GA4 recusou a consulta por limite de quota (HTTP 429).{suffix}') from error
+        raise
 
 
 class RequestBudget:
@@ -83,8 +96,7 @@ def _run_historical_report_uncached(property_id, payload):
         headers={'Authorization': f'Bearer {credentials.token}', 'Content-Type': 'application/json'},
         method='POST',
     )
-    with urlopen(request, timeout=20) as response:
-        return json.loads(response.read().decode('utf-8'))
+    return _open_report(request)
 
 
 def run_historical_report(property_id, payload, force_refresh=False):
@@ -111,8 +123,7 @@ def run_realtime_report(property_id, payload):
         headers={'Authorization': f'Bearer {credentials.token}', 'Content-Type': 'application/json'},
         method='POST',
     )
-    with urlopen(request, timeout=20) as response:
-        return json.loads(response.read().decode('utf-8'))
+    return _open_report(request)
 
 
 def standard_historical_report_payloads(start_date, end_date):
@@ -137,6 +148,12 @@ def standard_historical_report_payloads(start_date, end_date):
             'dimensions': [{'name': 'sessionDefaultChannelGroup'}],
             'metrics': [{'name': 'sessions'}, {'name': 'activeUsers'}],
             'limit': 15,
+        },
+        'channelDaily': {
+            'dateRanges': date_ranges,
+            'dimensions': [{'name': 'date'}, {'name': 'sessionDefaultChannelGroup'}],
+            'metrics': [{'name': 'sessions'}],
+            'limit': 500,
         },
         'sources': {
             'dateRanges': date_ranges,

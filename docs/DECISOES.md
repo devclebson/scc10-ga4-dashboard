@@ -64,3 +64,19 @@ O container privado usa HTTPS mesmo por IP. O certificado autoassinado foi confi
 ## Agrupamento `(other)` do GA4
 
 `(other)` é uma linha agregada do GA4, não uma matéria. A correção será feita no renderer do ranking: a linha não será exibida como notícia, mas suas visualizações permanecerão no denominador explicitamente identificado como total do portal.
+
+## Formatos de gráfico
+
+Os gráficos devem ser escolhidos pela pergunta analítica, não por decoração:
+
+- barras horizontais para rankings e comparação entre categorias;
+- rosca somente para composição percentual com poucas categorias;
+- barras empilhadas para mostrar mudança de composição ao longo dos dias;
+- linhas ou barras verticais para evolução temporal;
+- tabelas mantidas quando os valores detalhados forem necessários para auditoria.
+
+Na implementação atual, Redes sociais e Público usam roscas para composição, enquanto Aquisição usa barras empilhadas por canal e dia. Os percentuais continuam com o universo explicitamente indicado na tela.
+
+## Recuperação diante de HTTP 429
+
+HTTP 429 do GA4 é tratado como limite temporário de quota, não como falha fatal de autenticação. O serviço converte a resposta para `Ga4QuotaError`; o coletor grava o erro em `collector_runs`, informa o ciclo e continua no modo loop para tentar novamente no intervalo seguinte. Nenhuma credencial ou corpo sensível da resposta é exposto.

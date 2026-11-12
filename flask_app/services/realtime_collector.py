@@ -100,14 +100,20 @@ def collect_realtime_snapshot(property_id, repository, report_runner=None, chann
 def run_collector_loop(property_id, repository, interval_seconds=30, max_cycles=None, stop_event=None, on_cycle=None):
     interval_seconds = max(15, min(int(interval_seconds), 3600))
     results = []
-    while max_cycles is None or len(results) < max_cycles:
+    attempts = 0
+    while max_cycles is None or attempts < max_cycles:
         if stop_event is not None and stop_event.is_set():
             break
-        result = collect_realtime_snapshot(property_id, repository)
-        results.append(result)
-        if on_cycle is not None:
-            on_cycle(len(results), result)
-        if max_cycles is not None and len(results) >= max_cycles:
+        attempts += 1
+        try:
+            result = collect_realtime_snapshot(property_id, repository)
+            results.append(result)
+            if on_cycle is not None:
+                on_cycle(attempts, result)
+        except Exception as error:
+            if on_cycle is not None:
+                on_cycle(attempts, {'error': str(error), 'status': getattr(error, 'status', None)})
+        if max_cycles is not None and attempts >= max_cycles:
             break
         if stop_event is not None:
             stop_event.wait(interval_seconds)

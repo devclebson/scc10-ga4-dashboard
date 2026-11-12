@@ -25,6 +25,7 @@
   <section class="panel"><div class="panel-heading"><div><h2>Países com maior audiência</h2><span>Sessões por país no período</span></div></div><div id="audience-country-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar os países.</div></div></section>
   <section class="panel"><div class="panel-heading"><div><h2>Dispositivos</h2><span>Sessões por categoria de dispositivo</span></div></div><div id="audience-device-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar os dispositivos.</div></div></section>
 </section>
+<section class="panel audience-composition-panel"><div class="panel-heading"><div><h2>Composição dos dispositivos</h2><span>Participação por categoria</span></div></div><div class="donut-layout"><div id="audience-device-donut" class="donut-chart"><span>--</span></div><div id="audience-device-legend" class="donut-legend"><div class="empty-state">Consulte um período para carregar a composição.</div></div></div></section>
 <section class="overview-grid">
   <section class="panel"><div class="panel-heading"><div><h2>Localização</h2><span>País e região</span></div></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>País</th><th>Região</th><th>Sessões</th><th>Usuários</th></tr></thead><tbody id="audience-geo"><tr><td colspan="4"><div class="empty-state">Consulte um período para carregar a localização.</div></td></tr></tbody></table></div></section>
   <section class="panel"><div class="panel-heading"><div><h2>Dispositivos</h2><span>Categoria, sistema e navegador</span></div></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>Categoria</th><th>Sistema</th><th>Navegador</th><th>Sessões</th></tr></thead><tbody id="audience-devices-table"><tr><td colspan="4"><div class="empty-state">Consulte um período para carregar os dispositivos.</div></td></tr></tbody></table></div></section>
@@ -54,6 +55,15 @@ function renderBars(selector, items, labelKey, valueKey, suffix) {
   const max = Math.max(...values.map(item => Number(item[valueKey] || 0)), 1);
   document.querySelector(selector).innerHTML = values.map(item => `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(item[labelKey] || '(not set)')}</strong><span>${number(item[valueKey])} ${suffix}</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill horizontal-bar-fill--cyan" style="width:${Math.max((Number(item[valueKey] || 0) / max) * 100, 2)}%"></i></div></div>`).join('') || '<div class="empty-state">Nenhum dado disponível.</div>';
 }
+function renderDeviceDonut(items) {
+  const colors = ['#2563eb', '#0f9f9a', '#7c3aed', '#f59e0b', '#94a3b8'];
+  const total = items.reduce((sum, item) => sum + Number(item.sessions || 0), 0);
+  let cursor = 0;
+  const gradient = items.map((item, index) => { const start = cursor; cursor += (Number(item.sessions || 0) / total) * 100; return `${colors[index % colors.length]} ${start}% ${cursor}%`; }).join(', ');
+  document.querySelector('#audience-device-donut').style.background = total ? `conic-gradient(${gradient})` : '';
+  document.querySelector('#audience-device-donut').innerHTML = `<span>${number(total)}<small>sessões</small></span>`;
+  document.querySelector('#audience-device-legend').innerHTML = items.map((item, index) => `<div class="donut-legend-row"><span><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item.deviceCategory)}</span><strong>${total ? ((Number(item.sessions || 0) / total) * 100).toFixed(1) : '0.0'}%</strong></div>`).join('') || '<div class="empty-state">Nenhum dispositivo identificado.</div>';
+}
 function render(data) {
   const overview = rowsToObjects(data.overview || {});
   const geo = rowsToObjects(data.geo || {});
@@ -66,6 +76,7 @@ function render(data) {
   const deviceGroups = [...devices.reduce((map, row) => { const key = row.deviceCategory || '(not set)'; map.set(key, (map.get(key) || 0) + Number(row.sessions || 0)); return map; }, new Map())].map(([deviceCategory, sessions]) => ({deviceCategory, sessions})).sort((a, b) => b.sessions - a.sessions);
   renderBars('#audience-country-chart', countries, 'country', 'sessions', 'sessões');
   renderBars('#audience-device-chart', deviceGroups, 'deviceCategory', 'sessions', 'sessões');
+  renderDeviceDonut(deviceGroups);
   document.querySelector('#audience-geo').innerHTML = geo.map(row => `<tr><td><strong>${escapeHtml(row.country || '(not set)')}</strong></td><td>${escapeHtml(row.region || '(not set)')}</td><td>${number(row.sessions)}</td><td>${number(row.activeUsers)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Nenhum dado de localização retornado.</div></td></tr>';
   document.querySelector('#audience-devices-table').innerHTML = devices.map(row => `<tr><td><strong>${escapeHtml(row.deviceCategory || '(not set)')}</strong></td><td>${escapeHtml(row.operatingSystem || '(not set)')}</td><td>${escapeHtml(row.browser || '(not set)')}</td><td>${number(row.sessions)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Nenhum dado de dispositivo retornado.</div></td></tr>';
   document.querySelector('#audience-status').textContent = `Relatório histórico carregado · ${document.querySelector('#audience-start').value} a ${document.querySelector('#audience-end').value}`;

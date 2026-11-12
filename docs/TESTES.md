@@ -340,3 +340,32 @@ git diff --check
 ```powershell
 npx --yes agent-browser close --all
 ```
+
+## 12. Validação dos novos gráficos e recuperação de quota — 12/11/2026
+
+Suíte automatizada executada após a evolução visual e o tratamento de HTTP 429:
+
+```text
+24 testes Python passaram
+28 testes Node passaram
+npm run test:syntax passou
+git diff --check passou
+```
+
+Validação visual real em servidor Flask temporário:
+
+- `/aquisicao` respondeu HTTP 200;
+- consulta histórica retornou `Relatório histórico carregado`;
+- composição diária renderizou 7 dias;
+- legenda da composição renderizou 10 canais;
+- tabela de origens renderizou 30 linhas;
+- rosca de Redes sociais renderizou 6 segmentos;
+- rosca de Público renderizou 4 categorias;
+- nenhum overflow foi observado na validação móvel anterior de 390 px.
+
+Regressão de quota:
+
+- HTTP 429 do GA4 agora gera `Ga4QuotaError` com mensagem operacional;
+- o coletor registra a execução como erro e não encerra o loop contínuo;
+- o próximo ciclo pode tentar novamente após o intervalo configurado;
+- o teste automatizado confirma que o loop continua depois de uma falha de quota.

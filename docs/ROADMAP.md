@@ -147,3 +147,15 @@ Cada etapa deve ser validada com:
 - teste sem o backend;
 - teste com Service Account;
 - verificação de regressões nas abas existentes.
+
+## Evolução visual e resiliência GA4 — 12 de novembro de 2026
+
+- Gráficos de rosca adicionados em Redes sociais e Público para composição percentual com poucas categorias.
+- Gráfico de barras empilhadas adicionado em Aquisição para mostrar a composição diária por canal.
+- Barras horizontais permanecem como padrão para rankings e comparações detalhadas.
+- Consulta `channelDaily` adicionada ao catálogo histórico para alimentar a composição temporal dos canais.
+- Resposta HTTP 429 do GA4 passou a ser convertida em erro de quota explícito, sem traceback de baixo nível na aplicação.
+- O loop do coletor registra a falha no `collector_runs`, informa o erro no ciclo e continua aguardando o próximo intervalo, preservando o processo Flask + coletor durante limites temporários de quota.
+- A consulta da tela Aquisição foi validada novamente com 7 dias, 10 canais e HTTP 200.
+
+Próxima etapa: observar o coletor por múltiplos ciclos após a recuperação da quota e, somente depois, considerar novos formatos como heatmap ou funil quando houver contrato de dados confiável.

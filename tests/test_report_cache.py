@@ -148,11 +148,12 @@ def test_run_standard_historical_reports_executes_named_reports(monkeypatch):
 
     result = ga4_service.run_standard_historical_reports('123', '2026-11-01', '2026-11-10', force_refresh=True)
 
-    assert set(result) == {'overview', 'channels', 'sources', 'geo', 'devices', 'pages', 'events', 'conversions'}
+    assert set(result) == {'overview', 'channels', 'channelDaily', 'sources', 'geo', 'devices', 'pages', 'events', 'conversions'}
     assert all(result[name]['report'] == name for name in result)
     assert calls == [
         ('123', 'overview', True),
         ('123', 'channels', True),
+        ('123', 'channelDaily', True),
         ('123', 'sources', True),
         ('123', 'geo', True),
         ('123', 'devices', True),
@@ -272,6 +273,32 @@ def test_realtime_collector_loop_runs_bounded_cycles_without_overlap(monkeypatch
     assert [item['snapshotId'] for item in results] == [1, 2, 3]
     assert calls == [('123', 'repository')] * 3
     assert sleeps == [30, 30]
+
+
+def test_realtime_collector_loop_records_error_and_continues(monkeypatch):
+    calls = []
+    events = []
+
+    def fake_collect(_property_id, _repository):
+        calls.append(len(calls) + 1)
+        if len(calls) == 1:
+            raise realtime_collector.ga4_service.Ga4QuotaError('quota')
+        return {'snapshotId': 2, 'rowsCount': 1}
+
+    monkeypatch.setattr(realtime_collector, 'collect_realtime_snapshot', fake_collect)
+    monkeypatch.setattr(realtime_collector.time, 'sleep', lambda _seconds: None)
+
+    results = realtime_collector.run_collector_loop(
+        '123',
+        'repository',
+        interval_seconds=30,
+        max_cycles=2,
+        on_cycle=lambda cycle, result: events.append((cycle, result)),
+    )
+
+    assert results == [{'snapshotId': 2, 'rowsCount': 1}]
+    assert events[0][1]['error'] == 'quota'
+    assert events[1][1]['snapshotId'] == 2
 
 
 def test_storage_maintenance_requires_explicit_options():

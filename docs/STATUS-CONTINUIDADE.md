@@ -151,3 +151,14 @@ As validações de `ranking-teste.html`, do relatório histórico, do fallback d
 ## Regra de trabalho
 
 Toda nova melhoria deve partir da `develop` atualizada, usar uma branch curta, passar por testes e registrar o resultado na documentação antes da integração.
+
+## Última fatia local — 12 de novembro de 2026
+
+- Rosca de composição adicionada em Redes sociais.
+- Rosca de dispositivos adicionada em Público.
+- Barras empilhadas por canal/dia adicionadas em Aquisição.
+- Consulta histórica `channelDaily` adicionada ao serviço GA4.
+- A tela Aquisição voltou a funcionar após correção do JavaScript gerado no template e foi validada com HTTP 200.
+- HTTP 429 do GA4 deixou de derrubar o processo contínuo do coletor; o erro fica registrado e o próximo ciclo tenta novamente.
+- Suíte atual: 24 testes Python, 28 testes Node, sintaxe JavaScript e `git diff --check` aprovados.
+- Container/deploy continuam pausados; esta fatia é exclusivamente local.
