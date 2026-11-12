@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Operação | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero">
+  <div><p class="eyebrow">Saúde do sistema</p><h1>Operação</h1><p>Monitore o Flask, o coletor, o SQLite, o cache e a disponibilidade do GA4 em um único lugar.</p></div>
+  <div class="dashboard-actions"><button id="operation-refresh" class="button" type="button">Atualizar</button></div>
+</section>
+<div id="operation-status" class="status">Carregando diagnóstico operacional...</div>
+<section id="operation-kpis" class="overview-kpi-grid" aria-label="Indicadores operacionais"><article class="overview-kpi overview-kpi-primary"><span>Status geral</span><strong id="operation-overall">--</strong><small id="operation-overall-note">--</small></article><article class="overview-kpi"><span>Idade do snapshot</span><strong id="operation-age">--</strong><small>Atualização realtime</small></article><article class="overview-kpi"><span>Matérias em cache</span><strong id="operation-articles">--</strong><small>SQLite local</small></article><article class="overview-kpi"><span>Consultas históricas</span><strong id="operation-quota">--</strong><small>Uso do orçamento local</small></article></section>
+<section class="overview-grid">
+  <section class="panel"><div class="panel-heading"><div><h2>Serviços</h2><span>Status dos componentes principais</span></div><span id="operation-updated"></span></div><div id="operation-services" class="operation-service-list"></div></section>
+  <section class="panel"><div class="panel-heading"><div><h2>Último ciclo</h2><span>Execução mais recente do coletor</span></div></div><dl id="operation-cycle" class="overview-health-list"></dl></section>
+</section>
+<section class="overview-grid">
+  <section class="panel"><div class="panel-heading"><div><h2>Banco e cache</h2><span>Persistência local e relatórios históricos</span></div></div><dl id="operation-storage" class="overview-health-list"></dl></section>
+  <section class="panel"><div class="panel-heading"><div><h2>Último erro</h2><span>Falhas registradas pelo coletor</span></div></div><div id="operation-error" class="operation-error-state">Nenhum erro registrado.</div></section>
+</section>
+<script>
+const endpoint = '{{ url_for("api.config_diagnostics") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const text = value => value == null || value === '' ? '--' : String(value);
+const statusBadge = (ok, label) => `<span class="semantic-badge ${ok ? 'semantic-badge--success' : 'semantic-badge--warning'}">${label}</span>`;
+const age = value => value == null ? '--' : `${number(value)} s`;
+function row(label, value) { return `<div><dt>${label}</dt><dd>${value}</dd></div>`; }
+function render(data) {
+  const collector = data.collector || {};
+  const database = data.database || {};
+  const quota = data.historicalRequestBudget || {};
+  const healthy = Boolean(database.exists && database.hasSnapshotsTable && database.hasArticlesTable && collector.status === 'fresh');
+  document.querySelector('#operation-overall').textContent = healthy ? 'Saudável' : 'Atenção';
+  document.querySelector('#operation-overall-note').textContent = healthy ? 'Banco e coletor atualizados' : 'Verifique os detalhes abaixo';
+  document.querySelector('#operation-age').textContent = age(collector.ageSeconds);
+  document.querySelector('#operation-articles').textContent = number(data.articlesCached);
+  document.querySelector('#operation-quota').textContent = `${number(quota.used)} / ${number(quota.limit)}`;
+  document.querySelector('#operation-updated').textContent = `Atualizado em ${new Date().toLocaleTimeString('pt-BR')}`;
+  document.querySelector('#operation-services').innerHTML = `<div class="operation-service-row"><span><strong>Banco SQLite</strong><small>${text(database.fileName)}</small></span>${statusBadge(Boolean(database.exists), database.exists ? 'Disponível' : 'Ausente')}</div><div class="operation-service-row"><span><strong>Estrutura do banco</strong><small>Snapshots, matérias e configurações</small></span>${statusBadge(Boolean(database.hasSnapshotsTable && database.hasArticlesTable), database.hasSnapshotsTable && database.hasArticlesTable ? 'Íntegra' : 'Incompleta')}</div><div class="operation-service-row"><span><strong>Service Account</strong><small>Credencial não exibida</small></span>${statusBadge(Boolean(data.ga4Configured), data.ga4Configured ? 'Configurada' : 'Pendente')}</div><div class="operation-service-row"><span><strong>Coletor realtime</strong><small>Intervalo: ${number(collector.intervalSeconds)} s</small></span>${statusBadge(collector.status === 'fresh', collector.status === 'fresh' ? 'Atualizado' : text(collector.status))}</div>`;
+  document.querySelector('#operation-cycle').innerHTML = row('Último status', text(collector.lastStatus)) + row('Duração', collector.lastDurationMs == null ? '--' : `${number(collector.lastDurationMs)} ms`) + row('Último sucesso', collector.lastSuccessAt ? new Date(collector.lastSuccessAt).toLocaleString('pt-BR') : '--') + row('Linhas salvas', collector.lastSuccessRowsCount == null ? '--' : number(collector.lastSuccessRowsCount));
+  document.querySelector('#operation-storage').innerHTML = row('Arquivo', text(database.fileName)) + row('Tamanho', `${number(database.sizeBytes)} bytes`) + row('Propriedade', text(data.propertyId)) + row('Cache de relatórios', `${number(data.historicalReportCache?.entries)} entradas`);
+  const error = collector.lastError;
+  document.querySelector('#operation-error').innerHTML = error ? `<strong class="error">${text(error)}</strong><small>${text(collector.lastErrorStatus)}</small>` : '<strong class="operation-ok">Nenhum erro registrado</strong><small>O último ciclo conhecido não registrou falhas.</small>';
+  document.querySelector('#operation-status').textContent = `Diagnóstico atualizado · snapshot ${collector.latestSnapshotAt ? new Date(collector.latestSnapshotAt).toLocaleString('pt-BR') : 'indisponível'}`;
+}
+async function load() {
+  const status = document.querySelector('#operation-status'); status.textContent = 'Atualizando diagnóstico...';
+  try { const response = await fetch(endpoint, {cache: 'no-store'}); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o diagnóstico.'); render(data); }
+  catch (error) { status.textContent = error.message; status.classList.add('error'); }
+}
+document.querySelector('#operation-refresh').addEventListener('click', load);
+window.setInterval(load, 30000);
+load();
+</script>
+{% endblock %}

@@ -405,24 +405,38 @@ class SQLiteRepository:
         else:
             start = today.replace(day=1)
         if not self.database_path.exists():
-            return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': []}
+            return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'latestPublicationDate': None, 'authors': []}
         with self.connect() as connection:
             rows = connection.execute(
-                '''SELECT author, title, historical_views, published_at, page_path
+                '''SELECT id, author, title, category, historical_views, published_at, page_path
                    FROM articles
                    WHERE (? IS NULL OR property_id = ?)
                      AND author IS NOT NULL AND TRIM(author) != ''
                      AND published_at >= ? AND published_at <= ?''',
                 (property_id, property_id, start.isoformat(), today.isoformat()),
             ).fetchall()
+            latest_publication = connection.execute(
+                """SELECT MAX(published_at) FROM articles
+                   WHERE (? IS NULL OR property_id = ?)
+                     AND published_at IS NOT NULL AND TRIM(published_at) != ''""",
+                (property_id, property_id),
+            ).fetchone()[0]
         grouped = {}
         for row in rows:
             author = row['author'].strip()
-            item = grouped.setdefault(author, {'author': author, 'views': 0, 'titles': {}, 'topArticle': None})
+            item = grouped.setdefault(author, {'author': author, 'views': 0, 'titles': {}, 'topArticle': None, 'articles': []})
             views = int(row['historical_views'] or 0)
             title = row['title']
             item['views'] += views
             item['titles'][title] = item['titles'].get(title, 0) + views
+            item['articles'].append({
+                'id': row['id'],
+                'title': title,
+                'category': row['category'],
+                'views': views,
+                'publishedAt': row['published_at'],
+                'pagePath': row['page_path'],
+            })
             if not item['topArticle'] or views > item['topArticle']['views']:
                 item['topArticle'] = {'title': title, 'views': views, 'pagePath': row['page_path']}
         authors = []
@@ -432,12 +446,79 @@ class SQLiteRepository:
                 'views': item['views'],
                 'publications': len(item['titles']),
                 'topArticle': item['topArticle'],
+                'articles': sorted(item['articles'], key=lambda article: (-article['views'], article['title']))[:8],
             })
         authors.sort(key=lambda item: (-item['views'], -item['publications'], item['author']))
-        profiles = self._author_profiles(authors[:3])
+        profiles = self._author_profiles(authors)
         for author in authors:
             author['profile'] = profiles.get(author['author'], {'profileUrl': None, 'imageUrl': None, 'status': 'not-requested'})
-        return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'authors': authors}
+        return {
+            'period': period,
+            'startDate': start.isoformat(),
+            'endDate': today.isoformat(),
+            'latestPublicationDate': latest_publication,
+            'authors': authors,
+        }
+
+    def content_data(self, property_id: str | None, period: str = '30', category: str = '', author: str = '', query_text: str = '', limit: int = 50):
+        from datetime import date, timedelta
+
+        days = int(period)
+        today = date.today()
+        start = today - timedelta(days=days - 1)
+        filters = [
+            'property_id = ?',
+            'published_at >= ?',
+            'published_at <= ?',
+        ]
+        parameters = [property_id, start.isoformat(), today.isoformat()]
+        if category:
+            filters.append('category = ?')
+            parameters.append(category)
+        if author:
+            filters.append('author = ?')
+            parameters.append(author)
+        if query_text:
+            filters.append('title LIKE ?')
+            parameters.append(f'%{query_text}%')
+        where = ' AND '.join(filters)
+        if not self.database_path.exists():
+            return {'period': period, 'startDate': start.isoformat(), 'endDate': today.isoformat(), 'total': 0, 'articles': [], 'categories': [], 'authors': [], 'categorySummary': []}
+        with self.connect() as connection:
+            rows = connection.execute(
+                f'''SELECT id, title, page_path, category, author, published_at, historical_views
+                    FROM articles WHERE {where}
+                    ORDER BY historical_views DESC, published_at DESC, title ASC
+                    LIMIT ?''',
+                (*parameters, limit),
+            ).fetchall()
+            total = connection.execute(
+                f'SELECT COUNT(*) FROM articles WHERE {where}', parameters
+            ).fetchone()[0]
+            facets = connection.execute(
+                f'''SELECT DISTINCT category, author FROM articles
+                    WHERE {where} ORDER BY category, author LIMIT 500''',
+                parameters,
+            ).fetchall()
+            category_summary = connection.execute(
+                f'''SELECT COALESCE(NULLIF(TRIM(category), ''), 'Sem categoria') AS category,
+                           COUNT(*) AS publications,
+                           COALESCE(SUM(historical_views), 0) AS views
+                    FROM articles WHERE {where}
+                    GROUP BY COALESCE(NULLIF(TRIM(category), ''), 'Sem categoria')
+                    ORDER BY views DESC, publications DESC, category ASC''',
+                parameters,
+            ).fetchall()
+        return {
+            'period': period,
+            'startDate': start.isoformat(),
+            'endDate': today.isoformat(),
+            'total': total,
+            'articles': [dict(row) for row in rows],
+            'categories': sorted({row['category'] for row in facets if row['category']}),
+            'authors': sorted({row['author'] for row in facets if row['author']}),
+            'categorySummary': [dict(row) for row in category_summary],
+        }
 
     def article_detail(self, article_id: int):
         if not self.database_path.exists():

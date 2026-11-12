@@ -1,36 +1,74 @@
 {% extends 'base.html' %}
-{% block title %}Ranking de autores | SCC10 Analytics{% endblock %}
+{% block title %}Autores | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero dashboard-hero"><div><p class="eyebrow">Relatórios editoriais</p><h1>Ranking de autores</h1><p>Autores agrupados pelas matérias publicadas no período selecionado.</p></div><div class="ranking-actions"><label for="period">Período</label><select id="period"><option value="today">Hoje</option><option value="7days">Últimos 7 dias</option><option value="month" selected>Mês atual</option><option value="90days">Últimos 90 dias</option></select><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<section class="hero dashboard-hero author-hero">
+  <div><p class="eyebrow">Central editorial</p><h1>Autores</h1><p>Explore a produção, o alcance e as principais matérias de cada autor no período selecionado.</p></div>
+  <div class="ranking-actions"><label for="period">Período</label><select id="period"><option value="today">Hoje</option><option value="7days">Últimos 7 dias</option><option value="month" selected>Mês atual</option><option value="90days">Últimos 90 dias</option></select><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div>
+</section>
 <button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
 <div id="status" class="status">Carregando autores...</div>
-<section id="podium" class="author-podium"></section>
-<section class="panel"><div class="panel-heading"><h2>Ranking geral</h2><span id="total"></span></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>#</th><th>Autor</th><th>Publicações</th><th>Visualizações</th><th>Melhor matéria</th></tr></thead><tbody id="authors-body"></tbody></table></div></section>
+<div id="data-freshness-notice" class="data-freshness-notice hidden" role="status">As matérias publicadas aparecem pelo cache editorial, mas os dados de audiência do GA4 do mesmo dia podem estar incompletos. Para uma análise consolidada, prefira o dia anterior.</div>
+<section class="author-workspace"><section id="author-focus" class="author-focus panel"><div class="empty-state">Selecione um autor para ver os detalhes.</div></section><section class="panel author-rank-panel"><div class="panel-heading"><div><h2>Maiores alcances</h2><span>Selecione um autor para abrir o destaque</span></div></div><div id="author-rank-preview" class="author-rank-preview"></div></section></section>
+<section class="panel author-chart-panel"><div class="panel-heading"><div><h2>Alcance por autor</h2><span>Visualizações históricas no período selecionado</span></div></div><div id="author-bar-chart" class="horizontal-bar-chart"><div class="empty-state">Carregando autores...</div></div></section>
+<section class="panel author-directory-panel">
+  <div class="panel-heading"><div><h2>Escolha um autor</h2><span>O destaque abaixo muda ao selecionar um perfil</span></div><span id="total"></span></div>
+  <div id="author-directory" class="author-directory"></div>
+</section>
+<section class="panel"><div class="panel-heading"><div><h2>Ranking de alcance</h2><span>Ordenado por visualizações históricas das matérias publicadas</span></div></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>#</th><th>Autor</th><th>Publicações</th><th>Visualizações</th><th>Melhor matéria</th></tr></thead><tbody id="authors-body"></tbody></table></div></section>
 <script>
 const endpoint = '{{ url_for("api.authors_data") }}';
+const authorImageEndpoint = '{{ url_for("api.author_image") }}';
 const number = value => Number(value || 0).toLocaleString('pt-BR');
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-function avatar(author, index) {
-  const image = author.profile?.imageUrl ? `<img class="author-avatar" src="${escapeHtml(author.profile.imageUrl)}" alt="Foto de ${escapeHtml(author.author)}">` : `<div class="author-avatar author-avatar-fallback">${escapeHtml(initials(author.author))}</div>`;
-  const name = author.profile?.profileUrl ? `<a href="${escapeHtml(author.profile.profileUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(author.author)}</a>` : escapeHtml(author.author);
-  return `${image}<span class="author-medal">${['🥇','🥈','🥉'][index] || ''}</span><strong>${name}</strong>`;
+const initials = name => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+let authors = [];
+let selectedAuthor = '';
+function avatar(author, large = false) {
+  const className = `author-avatar${large ? ' author-avatar-large' : ''}`;
+  if (author.profile?.imageUrl) return `<img class="${className}" src="${authorImageEndpoint}?url=${encodeURIComponent(author.profile.imageUrl)}" alt="Foto de ${escapeHtml(author.author)}">`;
+  return `<div class="${className} author-avatar-fallback">${escapeHtml(initials(author.author))}</div>`;
 }
 function bindImageFallback() {
-  document.querySelectorAll('.author-avatar img').forEach(image => image.addEventListener('error', () => {
-    const fallback = document.createElement('div');
-    fallback.className = 'author-avatar author-avatar-fallback';
-    fallback.textContent = initials(image.alt.replace(/^Foto de /, ''));
-    image.replaceWith(fallback);
+  document.querySelectorAll('.author-avatar[src]').forEach(image => image.addEventListener('error', () => {
+    const fallback = document.createElement('div'); fallback.className = image.className + ' author-avatar-fallback'; fallback.textContent = initials(image.alt.replace(/^Foto de /, '')); image.replaceWith(fallback);
   }, { once: true }));
 }
-function render(data) {
-  const authors = data.authors || [];
-  document.querySelector('#total').textContent = `${authors.length} autores · ${data.startDate} a ${data.endDate}`;
-  document.querySelector('#podium').innerHTML = authors.slice(0, 3).map((author, index) => `<article class="author-podium-card podium-${index + 1}">${avatar(author, index)}<span>${number(author.views)} visualizaç${author.views === 1 ? 'ão' : 'ões'}</span><small>${author.publications} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></article>`).join('') || '<div class="empty-state">Nenhum autor publicou no período.</div>';
+function renderFocus(author) {
+  if (!author) { document.querySelector('#author-focus').innerHTML = '<div class="empty-state">Nenhum autor encontrado no período.</div>'; return; }
+  const profileLink = author.profile?.profileUrl ? `<a class="panel-link" href="${escapeHtml(author.profile.profileUrl)}" target="_blank" rel="noopener noreferrer">Abrir perfil público</a>` : '';
+  const articles = author.articles || [];
+  document.querySelector('#author-focus').innerHTML = `<div class="author-focus-header">${avatar(author, true)}<div><p class="eyebrow">Autor em destaque</p><h2>${escapeHtml(author.author)}</h2><p>${escapeHtml(author.topArticle?.title || 'Sem matéria principal no período.')}</p>${profileLink}</div></div><div class="author-focus-kpis"><div><span>Publicações</span><strong>${number(author.publications)}</strong></div><div><span>Visualizações</span><strong>${number(author.views)}</strong></div><div><span>Matérias detalhadas</span><strong>${number(articles.length)}</strong></div></div><div class="author-focus-articles"><div class="panel-heading"><h3>Principais matérias</h3><span>Até 8 maiores alcances do autor</span></div><div class="author-article-list">${articles.map(article => `<a class="author-article-row" href="/materias/${article.id}"><span><strong>${escapeHtml(article.title)}</strong><small>${escapeHtml(article.category || 'Sem categoria')} · ${escapeHtml(article.publishedAt || '--')}</small></span><strong>${number(article.views)}</strong></a>`).join('') || '<div class="empty-state">Nenhuma matéria detalhada disponível.</div>'}</div></div>`;
   bindImageFallback();
-  document.querySelector('#authors-body').innerHTML = authors.map((author, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><strong>${escapeHtml(author.author)}</strong></td><td>${author.publications}</td><td><strong>${number(author.views)}</strong></td><td>${escapeHtml(author.topArticle?.title || '--')}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum autor encontrado.</td></tr>';
-  document.querySelector('#status').textContent = 'Dados carregados do cache local de matérias. Usuários e visualizações são métricas históricas armazenadas por matéria.';
+}
+function renderRankPreview() {
+  document.querySelector('#author-rank-preview').innerHTML = authors.slice(0, 6).map((author, index) => `<button class="author-rank-card${author.author === selectedAuthor ? ' is-selected' : ''}" data-author="${escapeHtml(author.author)}" type="button"><span class="rank-number">${index + 1}</span><span><strong>${escapeHtml(author.author)}</strong><small>${number(author.publications)} publicaç${author.publications === 1 ? 'ão' : 'ões'}</small></span><b>${number(author.views)}</b></button>`).join('') || '<div class="empty-state">Nenhum ranking disponível.</div>';
+  document.querySelectorAll('.author-rank-card').forEach(card => card.addEventListener('click', () => selectAuthor(card.dataset.author)));
+}
+function selectAuthor(name) {
+  selectedAuthor = name;
+  const author = authors.find(item => item.author === name) || authors[0];
+  if (author) selectedAuthor = author.author;
+  document.querySelectorAll('.author-directory-card').forEach(card => card.classList.toggle('is-selected', card.dataset.author === selectedAuthor));
+  document.querySelectorAll('.author-rank-card').forEach(card => card.classList.toggle('is-selected', card.dataset.author === selectedAuthor));
+  renderFocus(author);
+}
+function renderAuthorChart() {
+  const values = authors.slice(0, 10);
+  const max = Math.max(...values.map(author => Number(author.views || 0)), 1);
+  document.querySelector('#author-bar-chart').innerHTML = values.map(author => `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(author.author)}</strong><span>${number(author.views)} visualizações · ${number(author.publications)} publicação${author.publications === 1 ? '' : 'ões'}</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill horizontal-bar-fill--accent" style="width:${Math.max((Number(author.views || 0) / max) * 100, 2)}%"></i></div></div>`).join('') || '<div class="empty-state">Nenhum autor encontrado.</div>';
+}
+function render(data) {
+  authors = data.authors || [];
+  document.querySelector('#data-freshness-notice').classList.toggle('hidden', document.querySelector('#period').value !== 'today');
+  document.querySelector('#total').textContent = `${authors.length} autores · ${data.startDate} a ${data.endDate}`;
+  document.querySelector('#author-directory').innerHTML = authors.map((author, index) => `<button class="author-directory-card${author.author === selectedAuthor || (!selectedAuthor && index === 0) ? ' is-selected' : ''}" data-author="${escapeHtml(author.author)}" type="button">${avatar(author)}<span><strong>${escapeHtml(author.author)}</strong><small>${number(author.publications)} publicaç${author.publications === 1 ? 'ão' : 'ões'} · ${number(author.views)} views</small></span><b>${index + 1}</b></button>`).join('') || '<div class="empty-state">Nenhum autor publicou no período.</div>';
+  renderAuthorChart();
+  document.querySelectorAll('.author-directory-card').forEach(card => card.addEventListener('click', () => selectAuthor(card.dataset.author)));
+  renderRankPreview();
+  selectAuthor(selectedAuthor || authors[0]?.author);
+  document.querySelector('#authors-body').innerHTML = authors.map((author, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><button class="author-table-link" data-author="${escapeHtml(author.author)}" type="button">${escapeHtml(author.author)}</button></td><td>${number(author.publications)}</td><td><strong>${number(author.views)}</strong></td><td>${escapeHtml(author.topArticle?.title || '--')}</td></tr>`).join('') || '<tr><td colspan="5">Nenhum autor encontrado.</td></tr>';
+  document.querySelectorAll('.author-table-link').forEach(button => button.addEventListener('click', () => { selectAuthor(button.dataset.author); document.querySelector('#author-focus').scrollIntoView({behavior: 'smooth', block: 'start'}); }));
+  document.querySelector('#status').textContent = authors.length ? 'Dados carregados do cache local de matérias. Usuários e visualizações são métricas históricas armazenadas por matéria.' : `Nenhum autor publicou entre ${data.startDate} e ${data.endDate}. Última publicação no cache: ${data.latestPublicationDate || '--'}.`;
 }
 async function load() {
   const status = document.querySelector('#status'); status.textContent = 'Atualizando autores...';
@@ -38,15 +76,9 @@ async function load() {
   catch (error) { status.textContent = error.message; }
 }
 document.querySelector('#refresh').addEventListener('click', load);
-document.querySelector('#period').addEventListener('change', load);
-document.querySelector('#fullscreen').addEventListener('click', async () => {
-  try { await document.documentElement.requestFullscreen(); }
-  catch { document.body.classList.add('fullscreen-active'); }
-});
-document.querySelector('#fullscreen-exit').addEventListener('click', async () => {
-  if (document.fullscreenElement) await document.exitFullscreen();
-  document.body.classList.remove('fullscreen-active');
-});
+document.querySelector('#period').addEventListener('change', () => { selectedAuthor = ''; load(); });
+document.querySelector('#fullscreen').addEventListener('click', async () => { try { await document.documentElement.requestFullscreen(); } catch { document.body.classList.add('fullscreen-active'); } });
+document.querySelector('#fullscreen-exit').addEventListener('click', async () => { if (document.fullscreenElement) await document.exitFullscreen(); document.body.classList.remove('fullscreen-active'); });
 document.addEventListener('fullscreenchange', () => document.body.classList.toggle('fullscreen-active', Boolean(document.fullscreenElement)));
 load();
 </script>

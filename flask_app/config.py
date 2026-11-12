@@ -20,6 +20,10 @@ def _load_dotenv(path):
         os.environ.setdefault(key, value)
 
 
+# Carrega o arquivo antes de avaliar os atributos da configuração Flask.
+_load_dotenv(BASE_DIR / '.env')
+
+
 class Config:
     SECRET_KEY = os.environ.get('FLASK_SECRET_KEY', 'dev-only-change-me')
     ADMIN_PASSWORD_HASH = os.environ.get('FLASK_ADMIN_PASSWORD_HASH')

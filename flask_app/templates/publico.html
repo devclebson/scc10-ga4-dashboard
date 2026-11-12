@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Público | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero">
+  <div>
+    <p class="eyebrow">Perfil da audiência</p>
+    <h1>Público</h1>
+    <p>Entenda de onde vêm os leitores e quais dispositivos concentram o consumo.</p>
+  </div>
+</section>
+<section class="panel content-toolbar acquisition-toolbar">
+  <label>Data inicial<input id="audience-start" type="date"></label>
+  <label>Data final<input id="audience-end" type="date"></label>
+  <button id="audience-load" class="button" type="button">Consultar GA4</button>
+  <span class="toolbar-note">Dados históricos com cache de 5 minutos.</span>
+</section>
+<div id="audience-status" class="status">Nenhum relatório consultado nesta sessão.</div>
+<section class="overview-kpi-grid content-kpi-grid">
+  <article class="overview-kpi overview-kpi-primary"><span>Usuários ativos</span><strong id="audience-users">--</strong><small>Período consultado</small></article>
+  <article class="overview-kpi"><span>Sessões</span><strong id="audience-sessions">--</strong><small>Período consultado</small></article>
+  <article class="overview-kpi"><span>Países encontrados</span><strong id="audience-countries">--</strong><small>Linhas retornadas</small></article>
+  <article class="overview-kpi"><span>Combinações de dispositivo</span><strong id="audience-devices">--</strong><small>Categoria · sistema · navegador</small></article>
+</section>
+<section class="overview-grid audience-chart-grid">
+  <section class="panel"><div class="panel-heading"><div><h2>Países com maior audiência</h2><span>Sessões por país no período</span></div></div><div id="audience-country-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar os países.</div></div></section>
+  <section class="panel"><div class="panel-heading"><div><h2>Dispositivos</h2><span>Sessões por categoria de dispositivo</span></div></div><div id="audience-device-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar os dispositivos.</div></div></section>
+</section>
+<section class="overview-grid">
+  <section class="panel"><div class="panel-heading"><div><h2>Localização</h2><span>País e região</span></div></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>País</th><th>Região</th><th>Sessões</th><th>Usuários</th></tr></thead><tbody id="audience-geo"><tr><td colspan="4"><div class="empty-state">Consulte um período para carregar a localização.</div></td></tr></tbody></table></div></section>
+  <section class="panel"><div class="panel-heading"><div><h2>Dispositivos</h2><span>Categoria, sistema e navegador</span></div></div><div class="table-wrap"><table class="ranking-table"><thead><tr><th>Categoria</th><th>Sistema</th><th>Navegador</th><th>Sessões</th></tr></thead><tbody id="audience-devices-table"><tr><td colspan="4"><div class="empty-state">Consulte um período para carregar os dispositivos.</div></td></tr></tbody></table></div></section>
+</section>
+<script>
+const reportsEndpoint = '{{ url_for("api.ga4_reports") }}';
+const configEndpoint = '{{ url_for("api.config") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const today = new Date();
+const iso = date => date.toISOString().slice(0, 10);
+document.querySelector('#audience-end').value = iso(today);
+const start = new Date(today); start.setDate(start.getDate() - 6); document.querySelector('#audience-start').value = iso(start);
+function rowsToObjects(report) {
+  const dimensions = (report.dimensionHeaders || []).map(header => header.name);
+  const metrics = (report.metricHeaders || []).map(header => header.name);
+  return (report.rows || []).map(row => {
+    const result = {};
+    (row.dimensionValues || []).forEach((value, index) => result[dimensions[index]] = value.value);
+    (row.metricValues || []).forEach((value, index) => result[metrics[index]] = Number(value.value || 0));
+    return result;
+  });
+}
+function metric(rows, name) { return rows.reduce((sum, row) => sum + Number(row[name] || 0), 0); }
+function renderBars(selector, items, labelKey, valueKey, suffix) {
+  const values = items.slice(0, 10);
+  const max = Math.max(...values.map(item => Number(item[valueKey] || 0)), 1);
+  document.querySelector(selector).innerHTML = values.map(item => `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(item[labelKey] || '(not set)')}</strong><span>${number(item[valueKey])} ${suffix}</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill horizontal-bar-fill--cyan" style="width:${Math.max((Number(item[valueKey] || 0) / max) * 100, 2)}%"></i></div></div>`).join('') || '<div class="empty-state">Nenhum dado disponível.</div>';
+}
+function render(data) {
+  const overview = rowsToObjects(data.overview || {});
+  const geo = rowsToObjects(data.geo || {});
+  const devices = rowsToObjects(data.devices || {});
+  document.querySelector('#audience-users').textContent = number(metric(overview, 'activeUsers'));
+  document.querySelector('#audience-sessions').textContent = number(metric(overview, 'sessions'));
+  document.querySelector('#audience-countries').textContent = number(new Set(geo.map(row => row.country || '(not set)')).size);
+  document.querySelector('#audience-devices').textContent = number(devices.length);
+  const countries = [...geo.reduce((map, row) => { const key = row.country || '(not set)'; map.set(key, (map.get(key) || 0) + Number(row.sessions || 0)); return map; }, new Map())].map(([country, sessions]) => ({country, sessions})).sort((a, b) => b.sessions - a.sessions);
+  const deviceGroups = [...devices.reduce((map, row) => { const key = row.deviceCategory || '(not set)'; map.set(key, (map.get(key) || 0) + Number(row.sessions || 0)); return map; }, new Map())].map(([deviceCategory, sessions]) => ({deviceCategory, sessions})).sort((a, b) => b.sessions - a.sessions);
+  renderBars('#audience-country-chart', countries, 'country', 'sessions', 'sessões');
+  renderBars('#audience-device-chart', deviceGroups, 'deviceCategory', 'sessions', 'sessões');
+  document.querySelector('#audience-geo').innerHTML = geo.map(row => `<tr><td><strong>${escapeHtml(row.country || '(not set)')}</strong></td><td>${escapeHtml(row.region || '(not set)')}</td><td>${number(row.sessions)}</td><td>${number(row.activeUsers)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Nenhum dado de localização retornado.</div></td></tr>';
+  document.querySelector('#audience-devices-table').innerHTML = devices.map(row => `<tr><td><strong>${escapeHtml(row.deviceCategory || '(not set)')}</strong></td><td>${escapeHtml(row.operatingSystem || '(not set)')}</td><td>${escapeHtml(row.browser || '(not set)')}</td><td>${number(row.sessions)}</td></tr>`).join('') || '<tr><td colspan="4"><div class="empty-state">Nenhum dado de dispositivo retornado.</div></td></tr>';
+  document.querySelector('#audience-status').textContent = `Relatório histórico carregado · ${document.querySelector('#audience-start').value} a ${document.querySelector('#audience-end').value}`;
+}
+async function loadAudience() {
+  const status = document.querySelector('#audience-status');
+  const button = document.querySelector('#audience-load');
+  button.disabled = true; status.textContent = 'Consultando GA4 e atualizando o cache...';
+  try {
+    const configResponse = await fetch(configEndpoint, {cache: 'no-store'});
+    const config = await configResponse.json();
+    if (!configResponse.ok || !config.propertyId) throw new Error('Propriedade GA4 não configurada.');
+    const response = await fetch(reportsEndpoint, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({propertyId: config.propertyId, startDate: document.querySelector('#audience-start').value, endDate: document.querySelector('#audience-end').value})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível consultar o GA4.');
+    render(data);
+  } catch (error) { status.textContent = error.message; status.classList.add('error'); }
+  finally { button.disabled = false; }
+}
+document.querySelector('#audience-load').addEventListener('click', loadAudience);
+</script>
+{% endblock %}

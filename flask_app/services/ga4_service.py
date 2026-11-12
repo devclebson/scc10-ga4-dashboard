@@ -138,17 +138,27 @@ def standard_historical_report_payloads(start_date, end_date):
             'metrics': [{'name': 'sessions'}, {'name': 'activeUsers'}],
             'limit': 15,
         },
+        'sources': {
+            'dateRanges': date_ranges,
+            'dimensions': [{'name': 'sessionSourceMedium'}],
+            'metrics': [{'name': 'sessions'}, {'name': 'activeUsers'}, {'name': 'screenPageViews'}],
+            'limit': 100,
+        },
         'geo': {
             'dateRanges': date_ranges,
-            'dimensions': [{'name': 'country'}],
+            'dimensions': [{'name': 'country'}, {'name': 'region'}],
             'metrics': [{'name': 'sessions'}, {'name': 'activeUsers'}],
-            'limit': 10,
+            'limit': 25,
         },
         'devices': {
             'dateRanges': date_ranges,
-            'dimensions': [{'name': 'deviceCategory'}],
+            'dimensions': [
+                {'name': 'deviceCategory'},
+                {'name': 'operatingSystem'},
+                {'name': 'browser'},
+            ],
             'metrics': [{'name': 'sessions'}, {'name': 'activeUsers'}],
-            'limit': 5,
+            'limit': 25,
         },
         'pages': {
             'dateRanges': date_ranges,

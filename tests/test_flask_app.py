@@ -7,7 +7,7 @@ from flask_app.repositories.sqlite_repository import SQLiteRepository
 from werkzeug.security import generate_password_hash
 
 
-def test_routes_and_existing_sqlite(tmp_path):
+def test_routes_and_existing_sqlite(tmp_path, monkeypatch):
     database = tmp_path / 'test.sqlite'
     connection = sqlite3.connect(database)
     connection.executescript('''
@@ -36,12 +36,19 @@ def test_routes_and_existing_sqlite(tmp_path):
         ADMIN_PASSWORD_HASH = generate_password_hash('test-password')
         ADMIN_SESSION_LIFETIME_SECONDS = 3600
 
+    monkeypatch.delenv('GOOGLE_SERVICE_ACCOUNT_JSON', raising=False)
+    monkeypatch.delenv('GOOGLE_SERVICE_ACCOUNT_FILE', raising=False)
     client = create_app(TestConfig).test_client()
     assert client.get('/dashboard').status_code == 200
+    assert client.get('/visao-geral').status_code == 200
+    assert client.get('/conteudo').status_code == 200
+    assert client.get('/aquisicao').status_code == 200
+    assert client.get('/publico').status_code == 200
+    assert client.get('/operacao').status_code == 302
     assert client.get('/ranking').status_code == 200
     assert client.get('/autores').status_code == 200
     assert client.get('/materias/1').status_code == 200
-    assert client.get('/configuracao').status_code == 200
+    assert client.get('/configuracao').status_code == 302
     assert client.get('/configuracao/admin').status_code == 302
     assert client.get('/configuracao/login').status_code == 200
     login = client.post('/configuracao/login', data={'password': 'test-password'}, follow_redirects=False)
@@ -51,6 +58,9 @@ def test_routes_and_existing_sqlite(tmp_path):
     with client.session_transaction() as browser_session:
         csrf_token = browser_session['csrf_token']
     assert client.post('/configuracao/logout', data={'csrf_token': csrf_token}).status_code == 302
+    assert client.get('/api/config/diagnostics').status_code == 401
+    login = client.post('/configuracao/login', data={'password': 'test-password'}, follow_redirects=False)
+    assert login.status_code == 302
     diagnostics = client.get('/api/config/diagnostics').get_json()
     assert diagnostics['database']['exists'] is True
     assert diagnostics['database']['hasSnapshotsTable'] is True
@@ -64,15 +74,26 @@ def test_routes_and_existing_sqlite(tmp_path):
     assert collector['activeArticlesCount'] == 3
     assert collector['intervalSeconds'] == 30
     assert collector['lastErrorStatus'] == 'not-recorded'
+    with client.session_transaction() as browser_session:
+        csrf_token = browser_session['csrf_token']
+    assert client.post('/configuracao/logout', data={'csrf_token': csrf_token}).status_code == 302
     payload = client.get('/api/dashboard/summary').get_json()
     assert payload['latest']['active_users_30m'] == 9
     assert payload['articlesCached'] == 1
+    overview = client.get('/api/overview').get_json()
+    assert overview['latest']['active_users_30m'] == 9
+    assert overview['history'][0]['id'] == 1
+    content = client.get('/api/conteudo?period=7').get_json()
+    assert content['articles'][0]['title'] == 'Teste'
+    assert content['articles'][0]['historical_views'] == 7
     ranking = client.get('/api/ranking?limit=1').get_json()
     assert ranking['articles'][0]['title'] == 'Teste'
     assert ranking['totalViews'] == 4
     authors = client.get('/api/autores?period=month').get_json()
     assert authors['authors'][0]['author'] == 'Autora Teste'
     assert authors['authors'][0]['publications'] == 1
+    assert authors['authors'][0]['articles'][0]['title'] == 'Teste'
+    assert authors['latestPublicationDate'] == '2026-11-09'
     detail = client.get('/api/materias/1').get_json()
     assert detail['article']['title'] == 'Teste'
     assert detail['trafficStatus'] == 'pending-flask-ga4-service'

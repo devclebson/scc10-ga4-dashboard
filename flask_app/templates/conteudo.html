@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Conteúdo | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero">
+  <div>
+    <p class="eyebrow">Desempenho editorial</p>
+    <h1>Conteúdo</h1>
+    <p>Veja quais matérias publicadas estão concentrando a audiência histórica do período.</p>
+  </div>
+  <div class="dashboard-actions"><button id="content-refresh" class="button" type="button">Atualizar</button></div>
+</section>
+<section class="content-toolbar panel">
+  <label>Período<select id="content-period"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">12 meses</option></select></label>
+  <label>Categoria<select id="content-category"><option value="">Todas</option></select></label>
+  <label>Autor<select id="content-author"><option value="">Todos</option></select></label>
+  <label class="content-search">Buscar matéria<input id="content-query" type="search" placeholder="Digite parte do título"></label>
+</section>
+<div id="content-status" class="status">Carregando conteúdo...</div>
+<section class="overview-kpi-grid content-kpi-grid">
+  <article class="overview-kpi overview-kpi-primary"><span>Matérias no recorte</span><strong id="content-total">--</strong><small id="content-period-label">--</small></article>
+  <article class="overview-kpi"><span>Visualizações somadas</span><strong id="content-views">--</strong><small>Cache histórico</small></article>
+  <article class="overview-kpi"><span>Autores encontrados</span><strong id="content-authors">--</strong><small>No recorte selecionado</small></article>
+  <article class="overview-kpi"><span>Categorias encontradas</span><strong id="content-categories">--</strong><small>No recorte selecionado</small></article>
+</section>
+<section class="overview-grid content-chart-grid">
+  <section class="panel"><div class="panel-heading"><div><h2>Matérias com maior alcance</h2><span>Visualizações históricas no recorte</span></div></div><div id="content-article-chart" class="horizontal-bar-chart"><div class="empty-state">Carregando matérias...</div></div></section>
+  <section class="panel"><div class="panel-heading"><div><h2>Alcance por categoria</h2><span>Somatório das visualizações do período</span></div></div><div id="content-category-chart" class="horizontal-bar-chart"><div class="empty-state">Carregando categorias...</div></div></section>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Desempenho das matérias</h2><span>Dados históricos armazenados no cache local</span></div><span id="content-count"></span></div>
+  <div class="table-wrap">
+    <table class="ranking-table content-table">
+      <thead><tr><th>#</th><th>Matéria</th><th>Categoria</th><th>Autor</th><th>Publicada</th><th>Visualizações</th><th></th></tr></thead>
+      <tbody id="content-body"></tbody>
+    </table>
+  </div>
+</section>
+<script>
+const endpoint = '{{ url_for("api.content_data") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const controls = ['content-period', 'content-category', 'content-author', 'content-query'];
+let latestData = null;
+
+function setOptions(id, values, allLabel) {
+  const select = document.querySelector(`#${id}`);
+  const current = select.value;
+  select.innerHTML = `<option value="">${allLabel}</option>` + values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  select.value = values.includes(current) ? current : '';
+}
+
+function renderBars(selector, items, labelKey, valueKey, suffix) {
+  const values = items.slice(0, 10);
+  const max = Math.max(...values.map(item => Number(item[valueKey] || 0)), 1);
+  document.querySelector(selector).innerHTML = values.map(item => `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(item[labelKey] || '--')}</strong><span>${number(item[valueKey])} ${suffix}</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill" style="width:${Math.max((Number(item[valueKey] || 0) / max) * 100, 2)}%"></i></div></div>`).join('') || '<div class="empty-state">Nenhum dado disponível.</div>';
+}
+
+function render(data) {
+  latestData = data;
+  setOptions('content-category', data.categories || [], 'Todas');
+  setOptions('content-author', data.authors || [], 'Todos');
+  document.querySelector('#content-total').textContent = number(data.total);
+  document.querySelector('#content-views').textContent = number((data.articles || []).reduce((sum, article) => sum + Number(article.historical_views || 0), 0));
+  document.querySelector('#content-authors').textContent = number((data.authors || []).length);
+  document.querySelector('#content-categories').textContent = number((data.categories || []).length);
+  document.querySelector('#content-period-label').textContent = `${data.startDate} a ${data.endDate}`;
+  document.querySelector('#content-count').textContent = `${data.articles.length} exibidas de ${data.total}`;
+  renderBars('#content-article-chart', data.articles || [], 'title', 'historical_views', 'visualizações');
+  renderBars('#content-category-chart', data.categorySummary || [], 'category', 'views', 'visualizações');
+  document.querySelector('#content-body').innerHTML = data.articles.map((article, index) => `<tr><td><span class="rank-number">${index + 1}</span></td><td><strong>${escapeHtml(article.title)}</strong></td><td>${escapeHtml(article.category || '--')}</td><td>${escapeHtml(article.author || '--')}</td><td>${escapeHtml(article.published_at || '--')}</td><td><strong>${number(article.historical_views)}</strong></td><td>${article.id ? `<a class="panel-link" href="/materias/${article.id}">Analisar</a>` : ''}</td></tr>`).join('') || '<tr><td colspan="7"><div class="empty-state">Nenhuma matéria encontrada para os filtros selecionados.</div></td></tr>';
+  document.querySelector('#content-status').textContent = `Cache histórico atualizado · ${data.startDate} a ${data.endDate}`;
+}
+
+async function loadContent() {
+  const params = new URLSearchParams({period: document.querySelector('#content-period').value, limit: '50'});
+  const category = document.querySelector('#content-category').value;
+  const author = document.querySelector('#content-author').value;
+  const query = document.querySelector('#content-query').value.trim();
+  if (category) params.set('category', category);
+  if (author) params.set('author', author);
+  if (query) params.set('q', query);
+  const status = document.querySelector('#content-status');
+  status.textContent = 'Atualizando conteúdo...';
+  try {
+    const response = await fetch(`${endpoint}?${params}`, {cache: 'no-store'});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar o conteúdo.');
+    render(data);
+  } catch (error) { status.textContent = error.message; }
+}
+controls.forEach(id => document.querySelector(`#${id}`).addEventListener(id === 'content-query' ? 'input' : 'change', () => {
+  window.clearTimeout(window.contentSearchTimer);
+  window.contentSearchTimer = window.setTimeout(loadContent, id === 'content-query' ? 350 : 0);
+}));
+document.querySelector('#content-refresh').addEventListener('click', loadContent);
+loadContent();
+</script>
+{% endblock %}

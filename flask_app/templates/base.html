@@ -10,10 +10,18 @@
   <header class="topbar">
     <a class="brand" href="{{ url_for('pages.dashboard') }}">SCC10 Analytics</a>
     <nav aria-label="Navegação principal">
-      <a class="{% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('pages.dashboard') }}">Dashboard</a>
-      <a class="{% if active_page == 'ranking' %}active{% endif %}" href="{{ url_for('pages.ranking') }}">Ranking</a>
+      <a class="{% if active_page == 'visao-geral' %}active{% endif %}" href="{{ url_for('pages.visao_geral') }}">Visão Geral</a>
+      <a class="{% if active_page == 'conteudo' %}active{% endif %}" href="{{ url_for('pages.conteudo') }}">Conteúdo</a>
       <a class="{% if active_page == 'autores' %}active{% endif %}" href="{{ url_for('pages.autores') }}">Autores</a>
-      <a class="{% if active_page == 'configuracao' %}active{% endif %}" href="{{ url_for('pages.configuracao') }}">Configuração</a>
+      <a class="{% if active_page == 'ranking' %}active{% endif %}" href="{{ url_for('pages.ranking') }}">Ranking ao vivo</a>
+      <a class="{% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('pages.dashboard') }}">Monitor realtime</a>
+      <a class="{% if active_page == 'aquisicao' %}active{% endif %}" href="{{ url_for('pages.aquisicao') }}">Aquisição</a>
+      <a class="{% if active_page == 'redes-sociais' %}active{% endif %}" href="{{ url_for('pages.redes_sociais') }}">Redes sociais</a>
+      <a class="{% if active_page == 'publico' %}active{% endif %}" href="{{ url_for('pages.publico') }}">Público</a>
+      {% if session.get('admin_authenticated') %}
+      <a class="{% if active_page == 'operacao' %}active{% endif %}" href="{{ url_for('pages.operacao') }}">Operação</a>
+      <a class="{% if active_page == 'configuracao' %}active{% endif %}" href="{{ url_for('pages.configuracao') }}">Administração</a>
+      {% endif %}
     </nav>
   </header>
   <main class="container">{% block content %}{% endblock %}</main>

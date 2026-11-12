@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Visão Geral | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero">
+  <div>
+    <p class="eyebrow">Visão executiva</p>
+    <h1>Visão Geral</h1>
+    <p>Resumo da audiência atual, ritmo de coleta e conteúdos que estão puxando o portal.</p>
+  </div>
+  <div class="dashboard-actions">
+    <button id="overview-refresh" class="button" type="button">Atualizar</button>
+  </div>
+</section>
+<div id="overview-status" class="status">Carregando visão geral...</div>
+
+<section class="overview-kpi-grid" aria-label="Indicadores principais">
+  <article class="overview-kpi overview-kpi-primary"><span>Leitores · últimos 30 min</span><strong id="overview-users-30m">--</strong><small id="overview-users-30m-note">Snapshot realtime</small></article>
+  <article class="overview-kpi"><span>Visualizações · últimos 30 min</span><strong id="overview-views-30m">--</strong><small>Janela realtime</small></article>
+  <article class="overview-kpi"><span>Leitores · últimos 5 min</span><strong id="overview-users-5m">--</strong><small>Ritmo imediato</small></article>
+  <article class="overview-kpi"><span>Matérias ativas</span><strong id="overview-active-articles">--</strong><small>No snapshot mais recente</small></article>
+</section>
+
+<section class="overview-grid">
+  <article class="panel overview-panel overview-panel-large">
+    <div class="panel-heading"><div><h2>Ritmo de audiência</h2><span>Leitores nos últimos snapshots</span></div><span id="overview-history-range"></span></div>
+    <div id="overview-history" class="overview-history" aria-label="Gráfico de leitores por snapshot"></div>
+  </article>
+  <article class="panel overview-panel">
+    <div class="panel-heading"><div><h2>Saúde da coleta</h2><span>Atualização operacional</span></div><span id="overview-health-chip" class="status-chip">--</span></div>
+    <dl class="overview-health-list">
+      <div><dt>Última coleta</dt><dd id="overview-captured-at">--</dd></div>
+      <div><dt>Idade do snapshot</dt><dd id="overview-snapshot-age">--</dd></div>
+      <div><dt>Matérias em cache</dt><dd id="overview-cached-articles">--</dd></div>
+    </dl>
+  </article>
+</section>
+
+<section class="overview-grid">
+  <article class="panel overview-panel">
+    <div class="panel-heading"><div><h2>Canais atuais</h2><span>Distribuição do snapshot</span></div></div>
+    <div id="overview-channels" class="channels-list"></div>
+  </article>
+  <article class="panel overview-panel overview-content-panel">
+    <div class="panel-heading"><div><h2>Conteúdos em destaque</h2><span>Ordenados por visualizações</span></div><a class="panel-link" href="{{ url_for('pages.ranking') }}">Ver ranking</a></div>
+    <ol id="overview-top-pages" class="ranking-list"></ol>
+  </article>
+</section>
+
+<script>
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const endpoint = '{{ url_for("api.overview_data") }}';
+
+function snapshotAge(capturedAt) {
+  if (!capturedAt) return null;
+  const seconds = Math.max(0, Math.round((Date.now() - Date.parse(capturedAt)) / 1000));
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}min`;
+}
+
+function renderHistory(history) {
+  const container = document.querySelector('#overview-history');
+  const values = [...history].reverse();
+  const max = Math.max(...values.map(item => Number(item.active_users_30m) || 0), 1);
+  container.innerHTML = values.map(item => {
+    const value = Number(item.active_users_30m) || 0;
+    const height = Math.max((value / max) * 100, 6);
+    const time = item.captured_at ? new Date(item.captured_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '--';
+    return `<div class="overview-history-bar" title="${escapeHtml(time)} · ${number(value)} leitores"><span style="height:${height}%"></span><small>${escapeHtml(time)}</small></div>`;
+  }).join('') || '<p class="empty">Ainda não há snapshots suficientes.</p>';
+  document.querySelector('#overview-history-range').textContent = `${values.length} snapshots`;
+}
+
+function render(data) {
+  const latest = data.latest || {};
+  const age = snapshotAge(latest.captured_at);
+  document.querySelector('#overview-users-30m').textContent = number(latest.active_users_30m);
+  document.querySelector('#overview-views-30m').textContent = number(latest.page_views_30m);
+  document.querySelector('#overview-users-5m').textContent = number(latest.active_users_5m);
+  document.querySelector('#overview-active-articles').textContent = number(latest.active_articles_count);
+  document.querySelector('#overview-users-30m-note').textContent = latest.captured_at ? `Atualizado às ${new Date(latest.captured_at).toLocaleTimeString('pt-BR')}` : 'Sem coleta';
+  document.querySelector('#overview-captured-at').textContent = latest.captured_at ? new Date(latest.captured_at).toLocaleString('pt-BR') : 'Sem coleta';
+  document.querySelector('#overview-snapshot-age').textContent = age ? `${age} atrás` : '--';
+  document.querySelector('#overview-cached-articles').textContent = number(data.articlesCached);
+  const chip = document.querySelector('#overview-health-chip');
+  chip.textContent = age && Number.parseInt(age) <= 2 ? 'Atualizado' : 'Verificar';
+  chip.classList.toggle('is-ok', Boolean(age && Number.parseInt(age) <= 2));
+  chip.classList.toggle('is-pending', !age || Number.parseInt(age) > 2);
+  document.querySelector('#overview-channels').innerHTML = (data.channelsToday || []).map(channel => `<div class="channel-row"><span>${escapeHtml(channel.channel)}</span><strong>${channel.pct}%</strong><div class="progress"><i style="width:${Math.min(Number(channel.pct) || 0, 100)}%"></i></div></div>`).join('') || '<p class="empty">Nenhum canal disponível.</p>';
+  document.querySelector('#overview-top-pages').innerHTML = (data.topPages || []).slice(0, 5).map((article, index) => `<li><span class="rank-number">${index + 1}</span><div><strong>${escapeHtml(article.title)}</strong><small>${number(article.users)} leitores · ${number(article.views)} visualizações</small></div></li>`).join('') || '<li class="empty">Nenhuma matéria disponível.</li>';
+  renderHistory(data.history || []);
+  document.querySelector('#overview-status').textContent = latest.captured_at ? `Dados locais atualizados em ${new Date(latest.captured_at).toLocaleString('pt-BR')}` : 'Nenhum snapshot disponível.';
+}
+
+async function loadOverview() {
+  const status = document.querySelector('#overview-status');
+  status.textContent = 'Atualizando visão geral...';
+  try {
+    const response = await fetch(endpoint, {cache: 'no-store'});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível carregar a visão geral.');
+    render(data);
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+document.querySelector('#overview-refresh').addEventListener('click', loadOverview);
+loadOverview();
+setInterval(loadOverview, 30000);
+</script>
+{% endblock %}

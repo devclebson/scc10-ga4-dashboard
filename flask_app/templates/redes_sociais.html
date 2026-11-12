@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Redes sociais | SCC10 Analytics{% endblock %}
+{% block content %}
+<section class="hero dashboard-hero">
+  <div><p class="eyebrow">Distribuição social</p><h1>Redes sociais</h1><p>Veja quais redes e origens sociais estão trazendo sessões, usuários e visualizações para o portal.</p></div>
+</section>
+<section class="panel content-toolbar acquisition-toolbar">
+  <label>Data inicial<input id="social-start" type="date"></label>
+  <label>Data final<input id="social-end" type="date"></label>
+  <button id="social-load" class="button" type="button"><img class="ui-icon" src="{{ url_for('static', filename='icons/lucide/refresh-cw.svg') }}" alt="">Consultar GA4</button>
+  <span class="toolbar-note">Dados históricos com cache de 5 minutos.</span>
+</section>
+<div id="social-status" class="status">Nenhum relatório consultado nesta sessão.</div>
+<section class="overview-kpi-grid content-kpi-grid">
+  <article class="overview-kpi overview-kpi-primary"><span>Sessões sociais</span><strong id="social-sessions">--</strong><small id="social-period">Período consultado</small></article>
+  <article class="overview-kpi"><span>Usuários sociais</span><strong id="social-users">--</strong><small>Somatório das origens sociais</small></article>
+  <article class="overview-kpi"><span>Visualizações sociais</span><strong id="social-views">--</strong><small>Somatório das origens sociais</small></article>
+  <article class="overview-kpi"><span>Redes identificadas</span><strong id="social-network-count">--</strong><small>Com sessões no período</small></article>
+</section>
+<section id="social-cards" class="social-network-grid"><div class="empty-state">Consulte um período para carregar as redes.</div></section>
+<section class="panel social-chart-panel">
+  <div class="panel-heading"><div><h2>Distribuição por rede</h2><span>Barras horizontais para comparar o peso de cada rede</span></div><label class="chart-metric-control">Métrica<select id="social-chart-metric"><option value="sessions">Sessões</option><option value="screenPageViews">Visualizações</option><option value="activeUsers">Usuários</option></select></label></div>
+  <div id="social-bar-chart" class="horizontal-bar-chart"><div class="empty-state">Consulte um período para carregar o gráfico.</div></div>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Origens sociais detalhadas</h2><span>Origem / mídia retornado pelo GA4</span></div><span id="social-source-count"></span></div>
+  <div class="table-wrap"><table class="ranking-table"><thead><tr><th>Rede ou origem</th><th>Mídia</th><th>Sessões</th><th>Usuários</th><th>Visualizações</th><th>Participação</th></tr></thead><tbody id="social-sources"><tr><td colspan="6"><div class="empty-state">Nenhum dado carregado.</div></td></tr></tbody></table></div>
+</section>
+<script>
+const reportsEndpoint = '{{ url_for("api.ga4_reports") }}';
+const configEndpoint = '{{ url_for("api.config") }}';
+const number = value => Number(value || 0).toLocaleString('pt-BR');
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const brandIconBase = '{{ url_for("static", filename="icons/brands/") }}';
+const today = new Date();
+const iso = date => date.toISOString().slice(0, 10);
+document.querySelector('#social-end').value = iso(today);
+const start = new Date(today); start.setDate(start.getDate() - 6); document.querySelector('#social-start').value = iso(start);
+const networks = [
+  {key: 'facebook', label: 'Facebook', color: 'facebook', pattern: /facebook/i},
+  {key: 'instagram', label: 'Instagram', color: 'instagram', pattern: /instagram/i},
+  {key: 'whatsapp', label: 'WhatsApp', color: 'whatsapp', pattern: /whatsapp/i},
+  {key: 'youtube', label: 'YouTube', color: 'youtube', pattern: /youtube|youtu\.be/i},
+  {key: 'tiktok', label: 'TikTok', color: 'tiktok', pattern: /tiktok/i},
+  {key: 'telegram', label: 'Telegram', color: 'telegram', pattern: /telegram/i},
+  {key: 'linkedin', label: 'LinkedIn', color: 'linkedin', pattern: /linkedin/i},
+  {key: 'threads', label: 'Threads', color: 'threads', pattern: /threads/i},
+  {key: 'reddit', label: 'Reddit', color: 'reddit', pattern: /reddit/i},
+  {key: 'x', label: 'X / Twitter', color: 'x', pattern: /twitter|x\.com/i},
+];
+function rowsToObjects(report) {
+  const dimensions = (report.dimensionHeaders || []).map(header => header.name);
+  const metrics = (report.metricHeaders || []).map(header => header.name);
+  return (report.rows || []).map(row => {
+    const result = {};
+    (row.dimensionValues || []).forEach((value, index) => result[dimensions[index]] = value.value);
+    (row.metricValues || []).forEach((value, index) => result[metrics[index]] = Number(value.value || 0));
+    return result;
+  });
+}
+function classify(value) { return networks.find(network => network.pattern.test(String(value || ''))) || null; }
+function aggregate(sources) {
+  const grouped = new Map();
+  sources.forEach(row => {
+    const network = classify(row.sessionSourceMedium);
+    if (!network) return;
+    const item = grouped.get(network.key) || {...network, sessions: 0, activeUsers: 0, screenPageViews: 0, sources: 0};
+    item.sessions += Number(row.sessions || 0);
+    item.activeUsers += Number(row.activeUsers || 0);
+    item.screenPageViews += Number(row.screenPageViews || 0);
+    item.sources += 1;
+    grouped.set(network.key, item);
+  });
+  return [...grouped.values()].sort((a, b) => b.sessions - a.sessions);
+}
+function renderChart(grouped) {
+  const metric = document.querySelector('#social-chart-metric').value;
+  const metricLabel = {sessions: 'sessões', activeUsers: 'usuários', screenPageViews: 'visualizações'}[metric];
+  const total = grouped.reduce((sum, network) => sum + Number(network[metric] || 0), 0);
+  const max = Math.max(...grouped.map(network => Number(network[metric] || 0)), 1);
+  document.querySelector('#social-bar-chart').innerHTML = grouped.map(network => {
+    const value = Number(network[metric] || 0);
+    const pct = total ? (value / total) * 100 : 0;
+    return `<div class="horizontal-bar-row"><div class="horizontal-bar-label"><strong>${escapeHtml(network.label)}</strong><span>${number(value)} ${metricLabel} · ${pct.toFixed(1)}%</span></div><div class="horizontal-bar-track"><i class="horizontal-bar-fill horizontal-bar-fill--${network.color}" style="width:${Math.max((value / max) * 100, 2)}%"></i></div></div>`;
+  }).join('') || '<div class="empty-state">Nenhuma rede social identificada no período.</div>';
+}
+function render(data) {
+  window.socialReport = data;
+  const sources = rowsToObjects(data.sources || {}).filter(row => classify(row.sessionSourceMedium));
+  const totalSessions = sources.reduce((sum, row) => sum + Number(row.sessions || 0), 0);
+  const totalUsers = sources.reduce((sum, row) => sum + Number(row.activeUsers || 0), 0);
+  const totalViews = sources.reduce((sum, row) => sum + Number(row.screenPageViews || 0), 0);
+  const grouped = aggregate(sources);
+  document.querySelector('#social-sessions').textContent = number(totalSessions);
+  document.querySelector('#social-users').textContent = number(totalUsers);
+  document.querySelector('#social-views').textContent = number(totalViews);
+  document.querySelector('#social-network-count').textContent = number(grouped.length);
+  document.querySelector('#social-period').textContent = `${document.querySelector('#social-start').value} a ${document.querySelector('#social-end').value}`;
+  document.querySelector('#social-cards').innerHTML = grouped.map(network => `<article class="social-network-card social-network-card--${network.color}"><div class="social-network-card__head"><span class="social-network-icon">${['facebook','instagram','whatsapp','youtube','tiktok','telegram','reddit','threads','x'].includes(network.key) ? `<img class="brand-icon" src="${brandIconBase}${network.key}.svg" alt="">` : escapeHtml(network.label.slice(0, 1))}</span><div><h2>${escapeHtml(network.label)}</h2><small>${network.sources} origem(ns) identificada(s)</small></div></div><div class="social-network-card__metrics"><div><span>Sessões</span><strong>${number(network.sessions)}</strong></div><div><span>Usuários</span><strong>${number(network.activeUsers)}</strong></div><div><span>Visualizações</span><strong>${number(network.screenPageViews)}</strong></div></div><div class="social-network-card__share"><span>Participação social</span><strong>${totalSessions ? ((network.sessions / totalSessions) * 100).toFixed(1) : '0.0'}%</strong></div></article>`).join('') || '<div class="empty-state">Nenhuma rede social identificada no período.</div>';
+  renderChart(grouped);
+  document.querySelector('#social-sources').innerHTML = sources.sort((a, b) => Number(b.sessions || 0) - Number(a.sessions || 0)).map(row => { const parts = String(row.sessionSourceMedium || '(not set)').split(' / '); return `<tr><td><strong>${escapeHtml(parts[0])}</strong></td><td>${escapeHtml(parts.slice(1).join(' / ') || '(not set)')}</td><td>${number(row.sessions)}</td><td>${number(row.activeUsers)}</td><td>${number(row.screenPageViews)}</td><td>${totalSessions ? `${((Number(row.sessions || 0) / totalSessions) * 100).toFixed(1)}%` : '--'}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty-state">Nenhuma origem social retornada.</div></td></tr>';
+  document.querySelector('#social-source-count').textContent = `${sources.length} origens detalhadas`;
+  document.querySelector('#social-status').textContent = `Relatório histórico carregado · ${document.querySelector('#social-start').value} a ${document.querySelector('#social-end').value}`;
+}
+async function loadSocial() {
+  const status = document.querySelector('#social-status');
+  const button = document.querySelector('#social-load');
+  button.disabled = true; status.textContent = 'Consultando GA4 e atualizando o cache...';
+  try {
+    const configResponse = await fetch(configEndpoint, {cache: 'no-store'});
+    const config = await configResponse.json();
+    if (!configResponse.ok || !config.propertyId) throw new Error('Propriedade GA4 não configurada.');
+    const response = await fetch(reportsEndpoint, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({propertyId: config.propertyId, startDate: document.querySelector('#social-start').value, endDate: document.querySelector('#social-end').value})});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Não foi possível consultar o GA4.');
+    render(data);
+  } catch (error) { status.textContent = error.message; status.classList.add('error'); }
+  finally { button.disabled = false; }
+}
+document.querySelector('#social-load').addEventListener('click', loadSocial);
+document.querySelector('#social-chart-metric').addEventListener('change', () => {
+  const sourceRows = rowsToObjects(window.socialReport?.sources || {}).filter(row => classify(row.sessionSourceMedium));
+  renderChart(aggregate(sourceRows));
+});
+</script>
+{% endblock %}

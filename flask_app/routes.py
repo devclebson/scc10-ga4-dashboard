@@ -3,8 +3,10 @@ from functools import wraps
 import hmac
 import re
 import secrets
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
-from flask import Blueprint, abort, current_app, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, current_app, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
 from .services.ga4_service import (
@@ -19,6 +21,7 @@ from .services.article_sync import sync_article_metadata
 
 pages = Blueprint('pages', __name__)
 api = Blueprint('api', __name__, url_prefix='/api')
+AUTHOR_IMAGE_HOSTS = {'scc10.com.br', 'www.scc10.com.br', 'i.ytimg.com'}
 
 
 def admin_required(view):
@@ -107,6 +110,37 @@ def dashboard():
     return render_template('dashboard.html', active_page='dashboard')
 
 
+@pages.get('/visao-geral')
+def visao_geral():
+    return render_template('visao_geral.html', active_page='visao-geral')
+
+
+@pages.get('/conteudo')
+def conteudo():
+    return render_template('conteudo.html', active_page='conteudo')
+
+
+@pages.get('/aquisicao')
+def aquisicao():
+    return render_template('aquisicao.html', active_page='aquisicao')
+
+
+@pages.get('/redes-sociais')
+def redes_sociais():
+    return render_template('redes_sociais.html', active_page='redes-sociais')
+
+
+@pages.get('/publico')
+def publico():
+    return render_template('publico.html', active_page='publico')
+
+
+@pages.get('/operacao')
+@admin_required
+def operacao():
+    return render_template('operacao.html', active_page='operacao')
+
+
 @pages.get('/ranking')
 def ranking():
     return render_template('ranking.html', active_page='ranking')
@@ -123,6 +157,7 @@ def materia(article_id):
 
 
 @pages.get('/configuracao')
+@admin_required
 def configuracao():
     return render_template('configuracao.html', active_page='configuracao')
 
@@ -177,10 +212,60 @@ def health():
     })
 
 
+@api.get('/author-image')
+def author_image():
+    image_url = str(request.args.get('url', '')).strip()
+    parsed = urlparse(image_url)
+    if parsed.scheme != 'https' or parsed.hostname not in AUTHOR_IMAGE_HOSTS:
+        return jsonify({'error': 'Origem de imagem não permitida.'}), 400
+    try:
+        upstream = Request(image_url, headers={'User-Agent': 'SCC10-Analytics-Flask/1.0'})
+        with urlopen(upstream, timeout=8) as response:
+            content_type = response.headers.get_content_type()
+            if not content_type.startswith('image/'):
+                return jsonify({'error': 'O recurso remoto não é uma imagem.'}), 415
+            payload = response.read(2 * 1024 * 1024 + 1)
+        if len(payload) > 2 * 1024 * 1024:
+            return jsonify({'error': 'Imagem excede o limite permitido.'}), 413
+        return Response(payload, mimetype=content_type, headers={'Cache-Control': 'public, max-age=86400'})
+    except Exception:
+        return jsonify({'error': 'Não foi possível carregar a imagem do autor.'}), 502
+
+
 @api.get('/dashboard/summary')
 def dashboard_summary():
     repository = current_app.extensions['repository']
     return jsonify(repository.dashboard_data(current_app.config.get('PROPERTY_ID')))
+
+
+@api.get('/overview')
+def overview_data():
+    repository = current_app.extensions['repository']
+    property_id = current_app.config.get('PROPERTY_ID')
+    data = repository.dashboard_data(property_id)
+    data['history'] = repository.latest_snapshots(property_id, limit=18)
+    return jsonify(data)
+
+
+@api.get('/conteudo')
+def content_data():
+    repository = current_app.extensions['repository']
+    period = request.args.get('period', '30')
+    if period not in {'7', '30', '90', '365'}:
+        period = '30'
+    limit = request.args.get('limit', '50')
+    try:
+        limit = max(1, min(int(limit), 200))
+    except (TypeError, ValueError):
+        limit = 50
+    return jsonify(repository.content_data(
+        current_app.config.get('PROPERTY_ID'),
+        period,
+        request.args.get('category', '').strip(),
+        request.args.get('author', '').strip(),
+        request.args.get('q', '').strip(),
+        limit,
+    ))
 
 
 @api.get('/ranking')
@@ -307,6 +392,7 @@ def save_admin_config():
 
 
 @api.get('/config/diagnostics')
+@admin_required
 def config_diagnostics():
     repository = current_app.extensions['repository']
     settings = repository.settings()

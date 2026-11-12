@@ -124,8 +124,12 @@ def test_standard_historical_report_payloads_match_dashboard_queries():
         {'name': 'newUsers'},
     ]
     assert reports['channels']['dimensions'] == [{'name': 'sessionDefaultChannelGroup'}]
-    assert reports['geo']['dimensions'] == [{'name': 'country'}]
-    assert reports['devices']['dimensions'] == [{'name': 'deviceCategory'}]
+    assert reports['geo']['dimensions'] == [{'name': 'country'}, {'name': 'region'}]
+    assert reports['devices']['dimensions'] == [
+        {'name': 'deviceCategory'},
+        {'name': 'operatingSystem'},
+        {'name': 'browser'},
+    ]
     assert reports['pages']['dimensions'] == [{'name': 'pagePath'}]
     assert reports['events']['dimensions'] == [{'name': 'eventName'}]
     assert reports['conversions']['metrics'] == [{'name': 'conversions'}, {'name': 'sessions'}]
@@ -144,11 +148,12 @@ def test_run_standard_historical_reports_executes_named_reports(monkeypatch):
 
     result = ga4_service.run_standard_historical_reports('123', '2026-11-01', '2026-11-10', force_refresh=True)
 
-    assert set(result) == {'overview', 'channels', 'geo', 'devices', 'pages', 'events', 'conversions'}
+    assert set(result) == {'overview', 'channels', 'sources', 'geo', 'devices', 'pages', 'events', 'conversions'}
     assert all(result[name]['report'] == name for name in result)
     assert calls == [
         ('123', 'overview', True),
         ('123', 'channels', True),
+        ('123', 'sources', True),
         ('123', 'geo', True),
         ('123', 'devices', True),
         ('123', 'pages', True),

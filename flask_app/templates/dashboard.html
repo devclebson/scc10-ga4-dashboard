@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard realtime | SCC10 Analytics{% endblock %}
+{% block title %}Monitor realtime | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero dashboard-hero"><div><p class="eyebrow">Monitor realtime</p><h1>Dashboard editorial</h1><p>Dados carregados do snapshot mais recente do coletor GA4.</p></div><div class="dashboard-actions"><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
+<section class="hero dashboard-hero"><div><p class="eyebrow">Acompanhamento contínuo</p><h1>Monitor realtime</h1><p>Dados carregados do snapshot mais recente do coletor GA4.</p></div><div class="dashboard-actions"><button id="fullscreen" class="button" type="button">Tela cheia</button><button id="refresh" class="button" type="button">Atualizar</button></div></section>
 <button id="fullscreen-exit" class="fullscreen-exit" type="button" aria-label="Sair da tela cheia">Sair da tela cheia</button>
 <div id="status" class="status">Carregando snapshot...</div>
 <section class="cards" id="summary"><div class="card"><span>Última coleta</span><strong id="captured-at">--</strong></div><div class="card"><span>Leitores · 5 min</span><strong id="active-users-5m">--</strong></div><div class="card"><span>Leitores · 30 min</span><strong id="active-users-30m">--</strong></div><div class="card"><span>Visualizações · 30 min</span><strong id="page-views">--</strong></div></section>

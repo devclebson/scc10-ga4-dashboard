@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% block title %}Análise da matéria | SCC10 Analytics{% endblock %}
 {% block content %}
-<section class="hero"><p class="eyebrow">Análise editorial</p><h1 id="title" class="article-title">Carregando matéria...</h1><p id="path"></p></section>
+<section class="hero article-hero"><div><p class="eyebrow">Análise editorial</p><h1 id="title" class="article-title">Carregando matéria...</h1><p id="path"></p></div><div class="article-actions"><a class="button button-secondary" href="{{ url_for('pages.conteudo') }}">Voltar para Conteúdo</a><a id="open-article" class="button hidden" href="#" target="_blank" rel="noopener noreferrer">Abrir no portal</a></div></section>
 <div id="status" class="status">Consultando dados locais...</div>
+<div id="source-summary" class="data-freshness-notice">Cache editorial: carregando metadados da matéria.</div>
 <section id="detail" class="hidden">
   <div class="cards"><div class="card"><span>Autor</span><strong id="author">--</strong></div><div class="card"><span>Categoria</span><strong id="category">--</strong></div><div class="card"><span>Publicada em</span><strong id="published">--</strong></div><div class="card"><span>Visualizações históricas</span><strong id="historical">--</strong></div></div>
   <section class="panel"><div class="panel-heading"><h2>Dados realtime</h2><span id="realtime-at"></span></div><div class="cards"><div class="card"><span>Leitores</span><strong id="realtime-users">--</strong></div><div class="card"><span>Visualizações</span><strong id="realtime-views">--</strong></div></div></section>
@@ -19,7 +20,13 @@ async function load() {
     if (!response.ok) throw new Error(data.error || 'Matéria não encontrada.');
     const article = data.article;
     document.querySelector('#title').textContent = text(article.title);
-    document.querySelector('#path').textContent = text(article.page_path);
+    const pagePath = text(article.page_path);
+    document.querySelector('#path').textContent = pagePath;
+    if (article.page_path && String(article.page_path).startsWith('/')) {
+      const openArticle = document.querySelector('#open-article');
+      openArticle.href = `https://scc10.com.br${article.page_path}`;
+      openArticle.classList.remove('hidden');
+    }
     document.querySelector('#author').textContent = text(article.author);
     document.querySelector('#category').textContent = text(article.category);
     document.querySelector('#published').textContent = text(article.published_at);
@@ -34,6 +41,9 @@ async function load() {
       document.querySelector('#traffic-table tbody').innerHTML = trafficRows.map(row => `<tr><td>${text(row.channel)}</td><td>${number(row.views)}</td><td>${number(row.sessions)}</td><td>${number(row.users)}</td><td>${row.pct}%</td></tr>`).join('');
       document.querySelector('#traffic-table').classList.remove('hidden');
     }
+    document.querySelector('#source-summary').textContent = data.realtime
+      ? 'Metadados e visualizações históricas vêm do cache editorial. Leitores e visualizações realtime vêm do último snapshot do coletor GA4.'
+      : 'Metadados e visualizações históricas vêm do cache editorial. A matéria não apareceu no último snapshot realtime.';
     document.querySelector('#status').textContent = data.realtime ? 'Dados locais e realtime carregados.' : 'Dados históricos carregados; a matéria não apareceu no último snapshot realtime.';
     document.querySelector('#detail').classList.remove('hidden');
   } catch (error) { document.querySelector('#status').textContent = error.message; document.querySelector('#status').classList.add('error'); }
